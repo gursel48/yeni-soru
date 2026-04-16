@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Ünvan Değişikliği Yapay Zeka</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      padding-bottom: 80px;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .menu-container, .quiz-container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 100%;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .menu-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: left;
+      cursor: pointer;
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+    }
+
+    .menu-btn.locked {
+      background: linear-gradient(135deg, #6c757d, #495057);
+      cursor: not-allowed;
+      order: 999;
+      opacity: 0.85;
+    }
+
+    .wrong-menu-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: left;
+      cursor: pointer;
+      background: linear-gradient(135deg, #dc3545, #a71d2a);
+      color: white;
+      order: 9999;
+      animation: wrongBlink 10s infinite;
+    }
+
+    @keyframes wrongBlink {
+      0%, 45% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(220,53,69,0);
+      }
+      50% {
+        opacity: 0.35;
+        transform: scale(1.02);
+        box-shadow: 0 0 18px rgba(220,53,69,0.45);
+      }
+      55%, 100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(220,53,69,0);
+      }
+    }
+
+    .quiz-container {
+      display: none;
+      position: relative;
+      padding-top: 85px;
+      min-height: 100vh;
+    }
+
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 6px;
+      background: #28a745;
+      transition: 0.3s;
+      width: 0%;
+      border-radius: 14px 14px 0 0;
+    }
+
+    .main-menu-btn {
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: calc(1rem + 4pt);
+      color: #333;
+      padding: 5px 0;
+    }
+
+    .header-info {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding-right: 110px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-width: 0;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .header-subject {
+      font-weight: normal;
+      color: #777;
+      font-size: 0.95rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .retry-badge {
+      display: none;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffe69c;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+
+    .question-title {
+      margin-top: 0;
+      margin-bottom: 16px;
+      line-height: 1.45;
+      font-size: 1.2rem;
+      color: #222;
+    }
+
+    .option-btn {
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+      background: #f8f9fa;
+      text-align: left;
+      cursor: pointer;
+      font-size: 1.05rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+      position: relative;
+    }
+
+    .option-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .option-btn:disabled {
+      cursor: default;
+    }
+
+    .option-btn.correct {
+      background: #d4edda !important;
+      border-color: #28a745 !important;
+      color: #155724 !important;
+      font-weight: bold;
+    }
+
+    .option-btn.wrong {
+      background: #f8d7da !important;
+      border-color: #dc3545 !important;
+      color: #721c24 !important;
+      font-weight: bold;
+    }
+
+    .tick {
+      display: inline-block;
+      margin-left: 10px;
+      color: #1f9d45;
+      font-weight: bold;
+      opacity: 0;
+      transform: scale(0.4);
+    }
+
+    .tick.show {
+      animation: popTick 0.45s ease forwards;
+    }
+
+    @keyframes popTick {
+      0%   { opacity: 0; transform: scale(0.4); }
+      60%  { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .explanation {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #eaf2f8;
+      border-left: 5px solid #2980b9;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .nav-controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 25px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      padding: 18px;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .next-btn { background: #007bff; }
+    .prev-btn {
+      background: #e9ecef;
+      color: #dc3545 !important;
+      border: 1px solid #ddd;
+    }
+
+    .quiz-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      color: #666;
+      font-weight: bold;
+      font-size: 0.9rem;
+      flex-wrap: wrap;
+    }
+
+    .disclaimer-box {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fdfdfd;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      color: #888;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .disclaimer-title {
+      display: block;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+    }
+
+    .source-tag {
+      position: fixed;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.05);
+      color: #777;
+      padding: 5px 10px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: bold;
+      z-index: 9999;
+    }
+
+    .reset-set-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: #ffc107;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.8rem;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    @media (max-width: 480px) {
+      .quiz-container {
+        padding-top: 110px;
+      }
+
+      .header-info {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        padding-right: 104px;
+        align-items: flex-start;
+      }
+
+      .header-left {
+        display: block;
+        padding-right: 6px;
+      }
+
+      .main-menu-btn {
+        display: block;
+        font-size: 0.95rem;
+        padding: 0;
+        margin-bottom: 6px;
+      }
+
+      .header-subject {
+        display: block;
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.3;
+        max-width: 100%;
+      }
+
+      .question-title {
+        font-size: 1.05rem;
+      }
+
+      .option-btn {
+        font-size: 1rem;
+        padding: 14px;
+      }
+
+      .reset-set-btn {
+        top: 12px;
+        right: 12px;
+        font-size: 0.75rem;
+        padding: 7px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div id="menuContainer" class="menu-container">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px;">
+      <h1 id="mainTitle" style="margin:0;">Ünvan Değişikliği Yapay Zeka</h1>
+      <button onclick="clearAllStatistics()" style="background:#dc3545; color:white; border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:0.75rem;">
+        Verileri Sıfırla
+      </button>
+<button onclick="shuffleAllQuestions()" style="background:#28a745;color:white;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.75rem;">Soruları Karıştır</button>
+
+    </div>
+
+    <div id="menuGrid" class="menu-grid"></div>
+
+    <div class="disclaimer-box">
+      <span class="disclaimer-title">⚠️ Önemli Uyarı</span>
+      Bu sistemde yer alan içerikler yalnızca eğitim amaçlıdır. İçeriklerin kullanımından doğabilecek doğrudan veya dolaylı hiçbir sorumluluk kabul edilmez. Tüm kullanım sorumluluğu kullanıcıya aittir.
+    </div>
+  </div>
+
+  <div id="quizContainer" class="quiz-container">
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="header-info">
+      <div class="header-left">
+        <button onclick="showMenu()" class="main-menu-btn">☰ Ana Menü</button>
+        <span id="headerSubject" class="header-subject"></span>
+      </div>
+    </div>
+
+    <button onclick="resetCurrentSet()" class="reset-set-btn">Seti Sıfırla</button>
+
+    <div id="retryBadge" class="retry-badge">Yalnış cevaplanan soru</div>
+    <h2 id="questionText" class="question-title">...</h2>
+
+    <div id="optionsArea"></div>
+
+    <div class="quiz-footer">
+      <div id="footerLeft">Kalan: 0</div>
+      <div id="footerRight">0 / 0</div>
+    </div>
+
+    <div id="explanationArea" class="explanation"></div>
+
+    <div class="nav-controls">
+      <button id="prevBtn" class="nav-btn prev-btn" onclick="goBack()" style="visibility:hidden;">❮ Önceki</button>
+      <button id="nextBtn" class="nav-btn next-btn" onclick="goForward()" style="visibility:hidden;">Yeni Soru ❯</button>
+    </div>
+  </div>
+</div>
+
+<div class="source-tag" id="sourceTag">Kaynak: yapayzeka/ unvan_degisikligi_yapay_zeka_versiyon_2</div>
+
+<script>
+  const BASE_SUBJECT = "Ünvan Değişikliği Yapay Zeka";
+  const VERSION_NUMBER = 7;
+
+  function buildVersionName(base, version) {
+    return `${base} Versiyon ${version}`;
+  }
+
+  function buildVersionSlug(base, version) {
+    return `${base.toLowerCase().replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}_versiyon_${version}`;
+  }
+
+  const CURRENT_SUBJECT = BASE_SUBJECT;
+  const VERSION_SLUG = buildVersionSlug(BASE_SUBJECT, VERSION_NUMBER);
+  const SOURCE_TEXT = `Kaynak: yapayzeka/ unvan_degisikligi_yapay_zeka_versiyon_2`;
+  const QUESTIONS_PER_SET = 30;
+
+  const questions = [{'q': 'Balıkların enerji ihtiyaçlarını karşılamak amacıyla rasyona eklenen ve proteinlerin enerji için yakılmasını önleyerek büyümede kullanılmasını sağlayan mekanizmaya ne ad verilir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Protein biyosentezi', 'Protein koruma etkisi (Protein sparing effect)', 'Spesifik dinamik etki', 'Negatif azot dengesi', 'Net protein kullanımı'], 'c': 1, 'e': 'Rasyona yeterli yağ ve karbonhidrat eklendiğinde protein enerji yerine büyüme için kullanılır.'}, {'q': "Sindirim sistemi anatomisine göre 'midesiz balıklar' grubuna giren tür hangisidir? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Gökkuşağı Alabalığı', 'Deniz levreği', 'Sazan', 'Yayın balığı', 'Çipura'], 'c': 2, 'e': 'Sazanlarda gerçek bir mide yoktur, genişlemiş bağırsak yapısı bulunur.'}, {'q': 'Bitkisel protein kaynakları balık yemlerinde kullanıldığında karşılaşılan en büyük sorun nedir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Anti-nutrisyonel faktörler ve amino asit dengesizliği', 'Aşırı yağ birikimi', 'Yemin suda dağılması', 'Balığın renginin koyulaşması', 'Yemin aşırı pahalılaşması'], 'c': 0, 'e': 'Bitkilerde sindirimi zorlaştıran fitatlar gibi faktörler ve kısıtlı amino asitler bulunur.'}, {'q': 'Su sıcaklığı düştüğünde balık beslenmesi üzerinde nasıl bir etki gözlenir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Sindirim hızı artar', 'Metabolizma hızı düşer ve yem tüketimi azalır', 'Enerji ihtiyacı artar', 'Balıklar sadece bitkisel yemleri tercih eder', 'Etkisi yoktur'], 'c': 1, 'e': 'Balıklar poikilotermdir, sıcaklık düştükçe enzim ve metabolizma yavaşlar.'}, {'q': 'Salmonid yemlerine ete pembe renk vermek için eklenen madde hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Klorofil', 'Melanin', 'Astaksantin', 'Hemoglobin', 'Bilirubin'], 'c': 2, 'e': 'Astaksantin kas dokusunda birikerek pembe rengi sağlar.'}, {'q': 'Balıklar için esansiyel (elzem) olan yağ asitleri hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Doymuş yağ asitleri', 'n-3 ve n-6 serisi çoklu doymamış yağ asitleri (PUFA)', 'Orta zincirli trigliseritler', 'Trans yağ asitleri', 'Kısa zincirli doymuş yağ asitleri'], 'c': 1, 'e': 'Balıklar Omega-3 ve Omega-6 serisini sentezleyemez, dışarıdan almalıdır.'}, {'q': 'FCR (Yem Dönüşüm Oranı) 1.2 olan bir işletmede, 1200 kg yemle ne kadar canlı ağırlık artışı sağlanır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['1200 kg', '1440 kg', '800 kg', '1000 kg', '2400 kg'], 'c': 3, 'e': 'FCR = Yem / Artış => 1.2 = 1200 / X => X = 1000 kg.'}, {'q': "Eksikliğinde balıklarda 'skolyoz' ve 'lordoz' (omurga eğriliği) görülen vitamin hangisidir? (Balık Besleme ve Yem Teknolojisi)", 'o': ['A Vitamini', 'B12 Vitamini', 'C Vitamini', 'E Vitamini', 'K Vitamini'], 'c': 2, 'e': 'C vitamini kolajen ve kıkırdak yapısı için kritiktir.'}, {'q': 'Yüksek sıcaklık ve basınçla yemin pişirilmesini sağlayan teknoloji hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Peletleme', 'Soğuk presleme', 'Ekstrüzyon (Extrusion)', 'Kurutma', 'Mikserleme'], 'c': 2, 'e': 'Ekstrüzyon yemi pişirir, dezenfekte eder ve gözenekli yapı sağlar.'}, {'q': 'Larvaların ilk beslenmesinde en yaygın kullanılan canlı yem hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Daphnia', 'Rotifer', 'Artemia salina', 'Tubifex', 'Gammarus'], 'c': 2, 'e': 'Artemia sistleri açtırılarak en yaygın canlı yem olarak kullanılır.'}, {'q': 'Balıklarda protein metabolizması sonucu oluşan ana boşaltım maddesi nedir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Üre', 'Ürik Asit', 'Amonyak (NH3)', 'Kreatinin', 'Karbondioksit'], 'c': 2, 'e': 'Balıklar amonyağı doğrudan solungaçlardan atarlar.'}, {'q': 'Gökkuşağı alabalığı rasyonlarında protein oranı yaklaşık ne olmalıdır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['%10-15', '%20-25', '%40-45', '%60-70', '%5-8'], 'c': 2, 'e': 'Karnivor olan alabalıklar yüksek protein (%40-50) isterler.'}, {'q': 'Nemli depolanan yemlerde üreyen ve karaciğer kanserine yol açan toksin hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Aflatoksin', 'Histamin', 'Botulinum', 'Gossypol', 'Solanin'], 'c': 0, 'e': 'Aspergillus mantarlarının ürettiği aflatoksin çok tehlikelidir.'}, {'q': 'İstirahat halindeki ve sindirim yapmayan balığın minimum enerji harcamasına ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Maksimum metabolizma', 'Aktif metabolizma', 'Standart metabolizma', 'Yemleme sonrası metabolizma', 'Bazal sıcaklık'], 'c': 2, 'e': 'Hayati fonksiyonların devamı için gereken en düşük enerjidir.'}, {'q': 'Yanlış besleme sonucu ortaya çıkan patolojik durum hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Vibriosis', 'Beyaz benek', 'Karaciğer yağlanması', 'Saprolegnia', 'IPN'], 'c': 2, 'e': 'Aşırı yağlı yemler metabolik bozukluğa (yağlanma) yol açar.'}, {'q': 'Yemin lezzetliliğini artıran maddelere ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Bağlayıcılar', 'Antioksidanlar', 'Attraktantlar (Cezbediciler)', 'Emülgatörler', 'Koruyucular'], 'c': 2, 'e': 'Yemin kokusunu ve tadını cazip hale getirirler.'}, {'q': 'Enerji değeri en yüksek besin maddesi hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Karbonhidratlar', 'Proteinler', 'Yağlar', 'Mineraller', 'Vitaminler'], 'c': 2, 'e': 'Yağlar 9 kcal/g, protein ve karbonhidratlar 4 kcal/g verir.'}, {'q': 'Kalsiyum ve fosfor dengesi ne için önemlidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Kas gelişimi', 'Solungaç fonksiyonu', 'İskelet ve kılçık oluşumu', 'Yemin suda yüzmesi', 'Bağırsak mikroflorası'], 'c': 2, 'e': 'Mineraller kemik ve pul yapısının ana bileşenidir.'}, {'q': '%2 besleme düzeyi neyi ifade eder? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Yemdeki protein miktarını', '100 kg balığa günde 2 kg yem verilmesini', "Yemin %2'sinin su olduğunu", 'Balığın derinliğini', 'Vitamin oranını'], 'c': 1, 'e': 'Besleme düzeyi, canlı ağırlığa oranla verilen yem miktarıdır.'}, {'q': 'Ağız açıklığı çok küçük larvaların ilk besini hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Karides', 'Rotifer', 'Un kurdu', 'Ekmek mayası', 'Su mercimeği'], 'c': 1, 'e': "Rotiferler Artemia'dan daha küçüktür, ilk yemdir."}, {'q': 'Yemlerin acılaşmasını (oksidasyonu) engelleyen madde hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Emülgatör', 'Antioksidan', 'Bağlayıcı', 'Probiyotik', 'Enzim'], 'c': 1, 'e': 'Ethoxyquin gibi maddeler yağların bozulmasını önler.'}, {'q': 'Balıkların doyana kadar beslenmesine ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Kısıtlı yemleme', 'Rasyonel besleme', 'Ad-libitum yemleme', 'Periyodik açlık', 'Otomatik yemleme'], 'c': 2, 'e': 'İştah kesilene kadar yapılan serbest beslemedir.'}, {'q': 'Karbonhidrat parçalayan Amilaz enzimi hangi balıklarda yüksektir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Karnivorlar', 'Omnivor ve Herbivorlar', 'Sadece deniz balıkları', 'Salmonidler', 'Larvalar'], 'c': 1, 'e': 'Otçul ve hepçil balıklar bitkisel nişastayı daha iyi sindirir.'}, {'q': "Yemde selüloz (lif) oranının %10'u geçmesi neden istenmez? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Rengi bozar', 'Yemi batırır', 'Sindirim hızını artırıp emilimi azaltır', 'Yağlanma yapar', 'Vitaminleri öldürür'], 'c': 2, 'e': 'Yüksek lif bağırsaktan geçişi hızlandırır, verim düşer.'}, {'q': 'Brüt Enerji - Dışkı Enerjisi sonucu ne bulunur? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Net Enerji', 'Metabolize Olabilir Enerji', 'Sindirilebilir Enerji', 'Isı Artışı', 'Saklanan Enerji'], 'c': 2, 'e': 'Digestible Energy (DE) formülüdür.'}, {'q': 'Kışın alabalık rasyonunda hangi madde azaltılmalıdır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Vitamin', 'Mineral', 'Protein', 'Yağ', 'Karbonhidrat'], 'c': 3, 'e': 'Soğukta yağ sindirimi zordur, karaciğer yağlanması yapar.'}, {'q': 'Eksikliğinde mikrositik anemi görülen mineral hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Kalsiyum', 'Demir (Fe)', 'İyot', 'Magnezyum', 'Çinko'], 'c': 1, 'e': 'Demir hemoglobinin temel taşıdır.'}, {'q': 'Kondisyon Faktörü (K) neyi ölçer? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Su kalitesini', 'Balığın boy-ağırlık ilişkisini (besililik)', 'Yem çözünürlüğünü', 'Yüzme hızını', 'Bakteri miktarını'], 'c': 1, 'e': 'Balığın formunun (zayıf/şişman) göstergesidir.'}, {'q': 'Homojen büyüme sağlamak için yemleme nasıl yapılmalıdır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Tek noktadan', 'Alanı geniş tutup su yüzeyine yayarak', 'Sadece gece', 'Büyük tane ile', '%50 azaltarak'], 'c': 1, 'e': 'Yem yayılırsa çekinik balıklar da yeme ulaşır.'}, {'q': "Yemde 'bağlayıcı' (binder) olarak ne kullanılır? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Balık yağı', 'Soya küspesi', 'Nişasta veya Jelatin', 'Vitamin premiksi', 'Kireç taşı'], 'c': 2, 'e': 'Nişasta jelatinleşerek peleti bir arada tutar.'}, {'q': 'Tatlı su balıkları hangi yağ asidini daha iyi dönüştürür? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Doymuşları', "Linolenik asitten EPA/DHA'ya", 'Trans yağları', 'Hayvansal yağları', 'Mum esterlerini'], 'c': 1, 'e': 'Tatlı su balıkları bitkisel yağlardan Omega-3 sentezinde daha başarılıdır.'}, {'q': 'Peletlemede buhar işleminin temel amacı nedir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Soğutmak', 'Rengi koyulaştırmak', 'Nişastayı jelatinleştirip sindirimi artırmak', 'Ağırlığı artırmak', 'Vitaminleri öldürmek'], 'c': 2, 'e': 'Isı ve nem nişastanın yapısını sindirilebilir hale getirir.'}, {'q': 'Besinlerin sindirimi sırasında harcanan enerjiye (ısı artışı) ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Üreme hızı', 'SGA (Spesifik Dinamik Etki)', 'Amonyak çıkışı', 'Batma hızı', 'Fototaksi'], 'c': 1, 'e': 'Specific Dynamic Action, sindirim maliyetidir.'}, {'q': "Yemde 'Ham Kül'ün yüksek olması neyi gösterir? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Yüksek protein', 'Yüksek vitamin', 'Fazla inorganik madde (kemik, pul, kum)', 'Yüksek enerji', 'Lezzet'], 'c': 2, 'e': 'Kül, yemin yakılması sonucu kalan mineral atıktır.'}, {'q': 'Mikrokapsül yemlerin en büyük avantajı nedir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Çok ucuz olmaları', 'Canlı yem riskini önleyip kontrollü içerik sunmaları', 'pH dengelemeleri', 'Gece kullanılmaları', 'Renk değiştirmeleri'], 'c': 1, 'e': 'Hassas larvalar için steril ve tam içerikli yemlerdir.'}, {'q': 'E vitamini eksikliği ve bozuk yağ tüketimi hangi hastalığı yapar? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Pansteatitis (Sarı yağ hastalığı)', 'Gaz kabarcığı', 'Mavi kulak', 'Çatal kuyruk', 'Beyaz kas'], 'c': 0, 'e': 'Okside yağlar ve E vit. eksikliği yağ dokusunu bozar.'}, {'q': 'Yemleme tabloları hangi iki veriye göre hazırlanır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Sayı - Derinlik', 'Sıcaklık - Canlı ağırlık', 'Işık - Basınç', 'Marka - Havuz', 'İşçi - Boy'], 'c': 1, 'e': 'Tüm tablolar balık büyüklüğü ve su ısısı eksenlidir.'}, {'q': 'Karides yemlerinin fiziksel özelliği ne olmalıdır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Yüzen', 'Batan (Sinking)', 'Yavaş batan', 'Toz', 'Sıvı'], 'c': 1, 'e': 'Karides dipte beslendiği için yem dibe çökmelidir.'}, {'q': 'Yararlı canlı mikroorganizmalara ne ad verilir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Antibiyotik', 'Prebiyotik', 'Probiyotik', 'Antiseptik', 'Dezenfektan'], 'c': 2, 'e': 'Probiyotikler bağırsak sağlığı için canlı kültürlerdir.'}, {'q': 'Esansiyel amino asit ne demektir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Vücutta üretilen', 'Tatlı suda gereken', 'Sentezlenemeyen, yemle alınması zorunlu olan', 'Renk veren', 'Zehirli olan'], 'c': 2, 'e': 'Vücut yapamaz, rasyonda mutlaka olmalıdır.'}, {'q': "Yemlemede 'Ölü Zaman' nedir? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Uyku saati', 'Sindirim süresi', 'Yemleme arası boşluk', 'Yemin atılması ile balığın fark etmesi arası süre', 'Kış dönemi'], 'c': 3, 'e': 'Akıntılı sistemlerde israfı önlemek için bu süre kısa olmalıdır.'}, {'q': 'Yağların aşırı kullanımı hangi sonuca yol açar? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Büyümeyi durdurur', 'Et kalitesini bozar ve iç organ yağlanması yapar', 'Balığı batırır', 'Solungacı tıkar', 'Rengi beyazlatır'], 'c': 1, 'e': 'Fazla yağ karkas verimini ve balık sağlığını bozar.'}, {'q': 'Balıklar kalsiyumu nasıl alabilirler? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Sadece yemle', 'Solungaçlarla sudan da alabilirler', 'Sadece deniz balıkları alır', 'Işıkla sentezler', 'Sadece bitkilerden'], 'c': 1, 'e': 'Suda çözünmüş kalsiyumu absorbe edebilirler.'}, {'q': 'Hammadde öğütme işleminde hangi cihaz kullanılır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Karıştırıcı', 'Kurutucu', 'Çekiçli Değirmen', 'Paketleme makinesi', 'Vakum tankı'], 'c': 2, 'e': 'Boyut küçültme değirmenlerde yapılır.'}, {'q': 'Hangisi hayvansal protein kaynağı değildir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Kan unu', 'Tüy unu', 'Karides unu', 'Kolza (Kanola) küspesi', 'Et-kemik unu'], 'c': 3, 'e': 'Kolza bitkisel bir yağlı tohumdur.'}, {'q': "Lizin ve Metiyonin neden 'sınırlayıcıdır'? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Hızlı yakıldıkları için', 'Bitkilerde yetersiz olup büyümeyi kısıtladıkları için', 'Tadı bozdukları için', 'Yaşlılıkta istendikleri için', 'Siyah boyadıkları için'], 'c': 1, 'e': 'En az olan amino asit kadar büyüme gerçekleşir.'}, {'q': 'Vakum Kaplama teknolojisi ne işe yarar? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Paketleme', 'Pelet içine yüksek yağ emdirme', 'Renk değiştirme', 'Dezenfeksiyon', 'Yüzdürme'], 'c': 1, 'e': 'Gövde içine yüksek oranda sıvı yağ çektirmeyi sağlar.'}, {'q': 'ME (Metabolize Olabilir Enerji) hesaplanırken hangisi çıkarılır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Dışkı', 'İdrar ve Solungaç artıkları', 'Isı artışı', 'Standart metabolizma', 'Yüzme enerjisi'], 'c': 1, 'e': 'ME = SE - (İdrar + Solungaç).'}, {'q': "Yemleme sırasında 'Ölü Alan' neden sakıncalıdır? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Balık uyuduğu için', 'Yem birikip çürür, suyu bozar', 'Sıcaklık yüksektir', 'Pul dökülür', 'Renk solar'], 'c': 1, 'e': 'Durgun suda biriken organik atık zehirler.'}, {'q': "Sıcaklık 15'ten 8 dereceye düşerse yemleme ne yapılmalıdır? (Balık Besleme ve Yem Teknolojisi)", 'o': ['Artırılmalı', 'Azaltılmalı', 'Protein artmalı', 'Tane küçülmeli', 'Durdurulmalı'], 'c': 1, 'e': 'Sıcaklık düştükçe ihtiyaç azalır.'}, {'q': 'Gossipol hangi hammadde ile rasyona girer? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Soya', 'Pamuk tohumu küspesi', 'Buğday', 'Mısır', 'Pirinç'], 'c': 1, 'e': 'Pamuk küspesindeki doğal toksindir.'}, {'q': 'Yararlı bakterileri besleyen maddelere ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Probiyotik', 'Antibiyotik', 'Prebiyotik', 'Antioksidan', 'Pigment'], 'c': 2, 'e': "Prebiyotikler 'gıdadır', probiyotikler 'canlıdır'."}, {'q': 'Yemin fiziksel kalite parametresi hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Protein', 'Su dayanıklılığı', 'Amino asit', 'Vitamin', 'Yağ'], 'c': 1, 'e': 'Suda dağılmama özelliği fiziksel kalitedir.'}, {'q': 'Vücut yapılarının sentezlenmesi ve büyüme işlemine ne denir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Katabolizma', 'Anabolizma', 'Boşaltım', 'Dikey hareket', 'Ovisyon'], 'c': 1, 'e': 'Anabolizma yapım reaksiyonlarıdır.'}, {'q': 'Yemlerde ana karbonhidrat kaynağı hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Balık unu', 'Soya yağı', 'Mısır veya Buğday', 'Kireç taşı', 'Vitamin'], 'c': 2, 'e': 'Tahıllar nişasta (karbonhidrat) kaynağıdır.'}, {'q': 'Oksijen 4 mg/L altına düşerse yemleme ne yapılmalıdır? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Hızlandırılmalı', 'Durdurulmalıdır', 'Vitamin eklenmeli', 'Islatılmalı', 'Işık kapatılmalı'], 'c': 1, 'e': 'Düşük oksijende sindirim balığı boğabilir.'}, {'q': 'Balıklar doymuş yağları neden zor sindirir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Mide küçüktür', 'Vücut ısısı düşük olduğu için yağ katı kalır', 'Zehirlidir', 'Safraları yoktur', 'Yüzerler'], 'c': 1, 'e': 'Doymuş yağlar düşük su ısısında çözünmez.'}, {'q': 'Fitik Asit hangi mineralin emilimini engeller? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Sodyum', 'Potasyum', 'Fosfor', 'Klor', 'Kükürt'], 'c': 2, 'e': 'Bitkilerdeki fosforu fitik asit bağlar.'}, {'q': 'Balığın çubuğa dokunarak yem aldığı sistem nedir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Bilgisayarlı', 'Talep Besleyici (Demand Feeder)', 'Manuel', 'Gece yemleme', 'Sıvı yemleme'], 'c': 1, 'e': 'Kendi kendine beslenme sistemidir.'}, {'q': 'Yemin Brüt Enerjisini ölçen cihaz hangisidir? (Balık Besleme ve Yem Teknolojisi)', 'o': ['Mikroskop', 'Santrifüj', 'Bomba Kalorimetresi', 'Spektrofotometre', 'Refraktometre'], 'c': 2, 'e': 'Yakma yoluyla ısıyı ölçer.'}, {'q': "Balık hastalıkları ile mücadelede kullanılan 'Karantina' uygulamasının temel amacı nedir? (Balık Hastalıkları)", 'o': ['Hızlı büyüme sağlamak', 'Yeni balıkların mevcut stoğa hastalık bulaştırma riskini önlemek', 'Su oksijenini artırmak', 'Yem tüketimini kontrol etmek', 'Cinsiyet belirlemek'], 'c': 1, 'e': 'Karantina, biyogüvenliğin ilk adımıdır; yeni stokların izlenmesidir.'}, {'q': 'Aeromonas salmonicida etkenli, çıban benzeri yaralarla seyreden bakteriyel hastalık hangisidir? (Balık Hastalıkları)', 'o': ['Vibriosis', 'Furunkulozis', 'Beyaz Benek', 'IPN', 'Saprolegnia'], 'c': 1, 'e': 'Furunkulozis, tatlı su salmonidlerinde görülen sistemik bir enfeksiyondur.'}, {'q': "Balıklarda görülen 'Beyaz Benek' hastalığının etkeni hangi gruptadır? (Balık Hastalıkları)", 'o': ['Bakteri', 'Virüs', 'Protozoon (Ciliata)', 'Mantar', 'Eklem bacaklı'], 'c': 2, 'e': 'Ichthyophthirius multifiliis bir siliat parazittir.'}, {'q': 'Viral hastalıklarla mücadelede hangisi kesinlikle uygulanmaz? (Balık Hastalıkları)', 'o': ['Dezenfeksiyon', 'Antibiyotik kullanımı', 'İmha', 'Karantina', 'Biyogüvenlik'], 'c': 1, 'e': 'Antibiyotikler virüslere etki etmez, sadece bakteriyel ikincil enfeksiyonlar için düşünülür ama asıl tedavi değildir.'}, {'q': 'Deniz balıklarında yaygın kanamalarla seyreden Vibriosis etkeni hangisidir? (Balık Hastalıkları)', 'o': ['Vibrio anguillarum', 'Yersinia ruckeri', 'Flavobacterium', 'Edwardsiella', 'Streptococcus'], 'c': 0, 'e': 'Vibrio türleri deniz sularının doğal florasında bulunur ve fırsatçıdır.'}, {'q': 'Yumurtalar üzerinde pamuksu tabaka oluşturan hastalık etkeni? (Balık Hastalıkları)', 'o': ['Virüs', 'Bakteri', 'Mantar (Saprolegnia)', 'Parazit', 'Alg'], 'c': 2, 'e': 'Mantar enfeksiyonları genelde ölü doku üzerinde başlar.'}, {'q': 'Aşağıdakilerden hangisi hastalık bulaştıran bir vektördür? (Balık Hastalıkları)', 'o': ['Kepçeler', 'Balıkçıl kuşlar', 'Çizmeler', 'Su kaynağı', 'Hepsi'], 'c': 4, 'e': 'Tüm kontamine araç ve canlılar vektör olabilir.'}, {'q': 'Kızıl ağız hastalığı (ERM) etkeni hangisidir? (Balık Hastalıkları)', 'o': ['Vibriosis', 'Yersinia ruckeri', 'Columnaris', 'VHS', 'İhtiyofonus'], 'c': 1, 'e': 'Yersiniozis özellikle alabalık yavrularını etkiler.'}, {'q': 'Antibiyogram testi neden yapılır? (Balık Hastalıkları)', 'o': ['Yaş tayini', 'pH ölçümü', 'Bakterinin duyarlı olduğu ilacı bulmak', 'Et kalitesi', 'Yem analizi'], 'c': 2, 'e': 'En etkili antibiyotiği seçmek direnç gelişimini önler.'}, {'q': 'Yavru alabalıklarda pankreas nekrozu ve yüksek ölüm yapan virüs? (Balık Hastalıkları)', 'o': ['VHS', 'IPN', 'IHN', 'KHV', 'Nodavirüs'], 'c': 1, 'e': 'IPN (Infectious Pancreatic Necrosis) dikey ve yatay bulaşır.'}, {'q': 'Dış parazitlerde en yaygın uygulama yöntemi? (Balık Hastalıkları)', 'o': ['Enjeksiyon', 'Yem', 'Banyo', 'Cerrahi', 'Işınlama'], 'c': 2, 'e': 'Banyo (Bath) paraziti yerinde yok etmek için en iyisidir.'}, {'q': 'Operkulumun tam kapanmaması neyin belirtisidir? (Balık Hastalıkları)', 'o': ['Açlık', 'Solungaç paraziti/irritasyonu', 'Hızlı yüzme', 'Soğuk su', 'Derinlik'], 'c': 1, 'e': 'Solungaçtaki ödem ve parazitler kapağın kapanmasını engeller.'}, {'q': 'Lernaeosis (Çapa kurdu) hangi gruptadır? (Balık Hastalıkları)', 'o': ['Bakteri', 'Eklem bacaklı (Crustacea)', 'Mantar', 'Virüs', 'Kurt'], 'c': 1, 'e': 'Lernaea cyprinacea bir parazitik kopepoddur.'}, {'q': 'İhbarı zorunlu hastalık listesini kim belirler? (Balık Hastalıkları)', 'o': ['FAO', 'WHO', 'WOAH (OIE)', 'UNESCO', 'UNICEF'], 'c': 2, 'e': 'Dünya Hayvan Sağlığı Örgütü küresel otoritedir.'}, {'q': 'Zoonoz hastalık nedir? (Balık Hastalıkları)', 'o': ['Hayvandan insana bulaşan', 'Sadece hayvanda', 'Sadece bitkide', 'Genetik', 'Besinsel'], 'c': 0, 'e': 'Örn: Anisakis paraziti bir zoonozdur.'}, {'q': 'Amonyak zehirlenmesi hangi gruptur? (Balık Hastalıkları)', 'o': ['Bulaşıcı', 'Paraziter', 'Çevresel (Abiyotik)', 'Viral', 'Mantar'], 'c': 2, 'e': 'Su kalitesi bozukluğundan kaynaklanır.'}, {'q': 'Hangisi biyogüvenlik önlemi değildir? (Balık Hastalıkları)', 'o': ['Dezenfektan havuzu', 'Ayrı kepçe', 'Kuş ağı', 'Aşırı yemleme', 'Temiz su'], 'c': 3, 'e': 'Aşırı yemleme suyun kalitesini ve sağlığı bozar.'}, {'q': 'Bakteriyel Böbrek Hastalığı (BKD) etkeni? (Balık Hastalıkları)', 'o': ['Renibacterium salmoninarum', 'Vibrio', 'Ichthyophthirius', 'Lernaea', 'Saprolegnia'], 'c': 0, 'e': 'BKD kronik ve tedavisi zor bir hastalıktır.'}, {'q': 'Dikey bulaşma ne demektir? (Balık Hastalıkları)', 'o': ['Akıntıyla geçiş', 'Anaçtan yavruya geçiş', 'Kepçeyle geçiş', 'Kuşla geçiş', 'Yemle geçiş'], 'c': 1, 'e': 'Yumurta yoluyla geçen virüsler için kullanılır.'}, {'q': 'Dönen hastalık (Whirling disease) etkeni? (Balık Hastalıkları)', 'o': ['Beyaz benek', 'Myxobolus cerebralis', 'Costia', 'Argulus', 'Trichodina'], 'c': 1, 'e': 'Kıkırdağı etkileyerek dengeyi bozar.'}, {'q': 'Ekipman dezenfeksiyonunda en güçlü madde? (Balık Hastalıkları)', 'o': ['Tuz', 'Potasyum Permanganat', 'Glikoz', 'Kireç', 'Magnezyum'], 'c': 1, 'e': 'KMnO4 güçlü bir oksitleyicidir.'}, {'q': 'Deniz balıklarında göze yerleşen trematod? (Balık Hastalıkları)', 'o': ['Benedenia spp.', 'Argulus', 'Ichthyophthirius', 'Lernaea', 'Gyrodactylus'], 'c': 0, 'e': 'Özellikle çipuralarda göz kaybına yol açar.'}, {'q': 'Gaz kabarcığı hastalığı sebebi? (Balık Hastalıkları)', 'o': ['Bakteri', 'Gaz süpersatürasyonu', 'Yem eksikliği', 'Amonyak', 'Virüs'], 'c': 1, 'e': 'Damarlarda hava kabarcığı oluşmasıdır.'}, {'q': 'Histopatolojik inceleme nedir? (Balık Hastalıkları)', 'o': ['Dış gözlem', 'Hücresel düzeyde doku inceleme', 'Bakteri sayımı', 'Yem analizi', 'Genetik harita'], 'c': 1, 'e': 'Kesin teşhis için organ kesitlerine bakılır.'}, {'q': 'Yüzgeç çürümesinin hazırlayıcı faktörü? (Balık Hastalıkları)', 'o': ['Hızlı yüzme', 'Az yem', 'Kötü su ve stres', 'Az ışık', 'Tuzluluk'], 'c': 2, 'e': 'Stres altındaki balıkta Flavobacterium etkili olur.'}, {'q': 'Vaksinasyon için hangisi yanlıştır? (Balık Hastalıkları)', 'o': ['Bağışıklık sağlar', 'Banyo ile yapılabilir', 'Balık bir daha asla hastalanmaz', 'Antibiyotiği azaltır', 'Sağlıklı balığa yapılır'], 'c': 2, 'e': 'Aşı korur ama %100 garanti vermez.'}, {'q': 'Balık kenesi olarak bilinen parazit? (Balık Hastalıkları)', 'o': ['Trichodina', 'Dactylogyrus', 'Argulus', 'Costia', 'Chilodonella'], 'c': 2, 'e': 'Gözle görülen bir ektoparazittir.'}, {'q': 'Levrek larvalarında spiral yüzüş yapan virüs? (Balık Hastalıkları)', 'o': ['Sazan virüsü', 'Nodavirüs', 'Alabalık virüsü', 'Akvaryum virüsü', 'Kabuklu virüsü'], 'c': 1, 'e': 'Merkezi sinir sistemini tahrip eder.'}, {'q': 'Biyogüvenliği ne bozar? (Balık Hastalıkları)', 'o': ['Kayıt tutmak', 'Dezenfeksiyon', 'Yaş gruplarını karıştırmak', 'Kapalı su', 'Kireçleme'], 'c': 2, 'e': 'Yaş farkı hastalık naklini kolaylaştırır.'}, {'q': 'Heksamitiazis vücudun neresini etkiler? (Balık Hastalıkları)', 'o': ['Solungaç', 'Göz', 'Bağırsak', 'Yüzgeç', 'Pul'], 'c': 2, 'e': 'Hexamita bir bağırsak protozoonudur.'}, {'q': 'Ölü balık imhasında en iyi yöntem? (Balık Hastalıkları)', 'o': ['Akarsuya atmak', 'Yem yapmak', 'Kireçleyip gömmek', 'Gübre yapmak', 'Dondurmak'], 'c': 2, 'e': 'Enfeksiyonun yayılmasını önler.'}, {'q': 'Streptokokozis ne zaman yayılır? (Balık Hastalıkları)', 'o': ['Soğukta', 'Tuzsuz suda', '20 C üzeri sıcaklıkta', 'Bol oksijende', 'Akıntıda'], 'c': 2, 'e': 'Sıcak su bakterisidir.'}, {'q': 'Dactylogyrus ana yerleşim yeri? (Balık Hastalıkları)', 'o': ['Karaciğer', 'Böbrek', 'Solungaç', 'Kas', 'Beyin'], 'c': 2, 'e': 'Bir monogenean dış parazittir.'}, {'q': 'Ani başlayan yüksek ölümlü seyir? (Balık Hastalıkları)', 'o': ['Kronik', 'Subakut', 'Akut', 'Latent', 'Portör'], 'c': 2, 'e': 'Akut hastalıklar şimşek hızında yayılır.'}, {'q': 'Yumurta dezenfektanı hangisidir? (Balık Hastalıkları)', 'o': ['Antibiyotik', 'İyodoforlar', 'Tuz ruhu', 'Şeker', 'Yağ'], 'c': 1, 'e': 'Povidon-iyot yaygın kullanılır.'}, {'q': 'Nativ inceleme nedir? (Balık Hastalıkları)', 'o': ['Otopsi', 'Taze preparat incelemesi', 'ELISA', 'PCR', 'Kültür'], 'c': 1, 'e': 'Parazitleri canlı görmek için yapılır.'}, {'q': 'IHN hastalığı etkeni? (Balık Hastalıkları)', 'o': ['Bakteri', 'Virüs', 'Mantar', 'Sülük', 'Alg'], 'c': 1, 'e': 'Hematopoetik Nekroz bir virüstür.'}, {'q': 'Antibiyotik direnci neden sorundur? (Balık Hastalıkları)', 'o': ['Tadı bozar', 'Tedavi imkansızlaşır', 'Su kararır', 'Yem ucuzlar', 'Büyüme yavaşlar'], 'c': 1, 'e': 'İlaçlar bakteriyi öldüremez hale gelir.'}, {'q': 'Anisakis larvaları insana nasıl geçer? (Balık Hastalıkları)', 'o': ['Solunum', 'Temas', 'Çiğ balık tüketimi', 'Kirli su', 'Yumurta'], 'c': 2, 'e': 'Balıklarda bulunan bir nematoddur.'}, {'q': 'Hastalıkta ilk yapılacak iş? (Balık Hastalıkları)', 'o': ['İlaç basmak', 'Gizlemek', 'Su yaymak', 'İzolasyon ve yem kesme', 'Satış'], 'c': 3, 'e': 'Yayılımı durdurmak için izolasyon şarttır.'}, {'q': 'Ana hematopoetik organ? (Balık Hastalıkları)', 'o': ['Kalp', 'Ön böbrek/Dalak', 'Mide', 'Yüzgeç', 'Pul'], 'c': 1, 'e': 'Balıklarda kan yapımı buralarda olur.'}, {'q': 'Portör balık nedir? (Balık Hastalıkları)', 'o': ['Gizli taşıyıcı', 'En hızlı büyüyen', 'Yem taşıyan', 'Otçul', "GDO'lu"], 'c': 0, 'e': 'Sağlıklı görünür ama bulaştırır.'}, {'q': 'Sazan çiçeği (Carp Pox) etkeni? (Balık Hastalıkları)', 'o': ['Bakteri', 'Mantar', 'Herpesvirüs', 'Kurt', 'Vitamin'], 'c': 2, 'e': 'Deri lezyonları yapar.'}, {'q': 'Melanozis (siyahlaşma) hangi hastalıkta tipiktir? (Balık Hastalıkları)', 'o': ['Beyaz benek', 'Dönen hastalık', 'Sülük', 'Yağlanma', 'Mantar'], 'c': 1, 'e': 'Kuyrukta kararmanın ana sebebidir.'}, {'q': 'Dropsy neyin belirtisidir? (Balık Hastalıkları)', 'o': ['Mide', 'Göz', 'Böbrek iflası', 'Beyin', 'Kese'], 'c': 2, 'e': 'Su dengesi bozulur, karın şişer.'}, {'q': 'Kesin teşhis yapan genetik yöntem? (Balık Hastalıkları)', 'o': ['Protein analizi', 'PCR', 'Sayım', 'Yumurta kontrolü', 'Dozaj'], 'c': 1, 'e': 'DNA/RNA üzerinden teşhis koyar.'}, {'q': 'Kış hastalığı etkeni? (Balık Hastalıkları)', 'o': ['Sıcak bakteri', 'Saprolegnia/Protozoon', 'Sadece virüs', 'Zehirlenme', 'Hiçbiri'], 'c': 1, 'e': 'Zayıflamış balığa saldırırlar.'}, {'q': 'Neden canlı doku bakılır? (Balık Hastalıkları)', 'o': ['Hareketi izlemek için', 'Öldürmek için', 'Su ölçmek için', 'Uyutmak için', 'Yem görmek'], 'c': 0, 'e': 'Hareket tür teşhisinde anahtardır.'}, {'q': 'Kuş ağlarının asıl önemi? (Balık Hastalıkları)', 'o': ['Yem koruma', 'Vektör engelleme', 'Gölge', 'Isı', 'Atlama'], 'c': 1, 'e': 'Hastalık taşıyan kuşları uzak tutar.'}, {'q': 'Columnaris (Semer) etkeni? (Balık Hastalıkları)', 'o': ['Vibrio', 'Aeromonas', 'Flavobacterium columnare', 'Streptokok', 'Yersinia'], 'c': 2, 'e': 'Deri ve solungaç çürümesi yapar.'}, {'q': 'Dirençli antibiyotik ne demektir? (Balık Hastalıkları)', 'o': ['İyileştirir', 'Etkisizdir', 'Büyütür', 'Denizde kullanılır', 'Tozdur'], 'c': 1, 'e': 'Bakteri o ilaca bağışıktır.'}, {'q': 'UV filtrenin amacı? (Balık Hastalıkları)', 'o': ['Isıtma', 'Parlatma', 'Patojen etkisizleştirme', 'Oksijen', 'Batırma'], 'c': 2, 'e': 'Mikropları öldürür.'}, {'q': 'Ektoparazit nerede yaşar? (Balık Hastalıkları)', 'o': ['İç organ', 'Kas', 'Dış yüzey (Deri/Solungaç)', 'Yumurta', 'Kan'], 'c': 2, 'e': 'Yüzey parazitidir.'}, {'q': 'İzleme programı hedefi? (Balık Hastalıkları)', 'o': ['Fiyat', 'Ari bölgeler oluşturmak', 'Ağ kontrolü', 'Tür keşfi', 'Yasak'], 'c': 1, 'e': 'Hastalığı kontrol altında tutmak içindir.'}, {'q': 'Mortalite nedir? (Balık Hastalıkları)', 'o': ['Hastalık oranı', 'İyileşme', 'Ölüm oranı', 'Hız', 'Sıklık'], 'c': 2, 'e': 'Ölen canlı yüzdesi.'}, {'q': 'Septisemi neyi anlatır? (Balık Hastalıkları)', 'o': ['Kopma', 'Kan zehirlenmesi / Sistemik yayılım', 'Açlık', 'Oksijen', 'Körlük'], 'c': 1, 'e': 'Patojen kanda dolaşır.'}, {'q': 'İyodofor en çok nerede kullanılır? (Balık Hastalıkları)', 'o': ['Yem', 'Sağım', 'Yumurta dezenfeksiyonu', 'Boya', 'Tekerlek'], 'c': 2, 'e': 'Enfeksiyonu yavruya geçmeden kırar.'}, {'q': 'Yüzme kesesi iltihabı kimde kritiktir? (Balık Hastalıkları)', 'o': ['Ergin alabalık', 'Sazan yavrusu', 'Levrek anaç', 'Akvaryum', 'Kaplumbağa'], 'c': 1, 'e': 'Sazanlarda büyük kayıp yapar.'}, {'q': 'Canlı naklinde zorunlu belge? (Balık Hastalıkları)', 'o': ['Vergi', 'Veteriner Sağlık Raporu', 'Diploma', 'Kira', 'Fatura'], 'c': 1, 'e': 'Yasal taşıma şartıdır.'}, {'q': 'Katarakt sebebi nedir? (Balık Hastalıkları)', 'o': ['Işık', 'Çinko eksikliği / Parazit', 'Derinlik', 'Yaş', 'Yüzme'], 'c': 1, 'e': 'Beslenme veya Diplostomum paraziti yapar.'}, {'q': 'Bir su ürünleri işletmesinde üretim miktarı ne olursa olsun değişmeyen (kira, daimi personel maaşı, amortisman vb.) giderlere ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Değişken Maliyetler', 'Marjinal Maliyetler', 'Sabit Maliyetler', 'Ortalama Maliyetler', 'Fırsat Maliyetleri'], 'c': 2, 'e': 'Sabit maliyetler, tesisin kapasite kullanım oranından bağımsız olarak yapılan harcamalardır.'}, {'q': 'Su ürünleri yetiştiriciliğinde üretim miktarına bağlı olarak artan veya azalan (yem, yavru balık, elektrik, ilaç vb.) maliyet kalemleri hangisidir? (Su Ürünleri Ekonomisi)', 'o': ['Sabit Maliyetler', 'Değişken Maliyetler', 'Hurda Değer', 'Amortisman', 'Nominal Maliyet'], 'c': 1, 'e': 'Üretim arttıkça bu kalemlerin toplam tutarı da artış gösterir.'}, {'q': 'İşletmenin toplam gelirinin, toplam maliyetine eşit olduğu ve kârın sıfır olduğu noktaya ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Maksimum kâr noktası', 'Doyma noktası', 'Başa Baş Noktası (Break-even point)', 'İflas sınırı', 'Kapasite sınırı'], 'c': 2, 'e': 'Bu nokta, işletmenin zarar etmeyi bırakıp kâra geçiş eşiğini temsil eder.'}, {'q': 'Üretim sürecinde tamamen şekil değiştirerek tüketilen ve değerini ürüne devreden (yem, yavru balık, yakıt) sermaye grubuna ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Sabit Sermaye', 'İşletme Sermayesi (Dönen Sermaye)', 'Öz Sermaye', 'Yabancı Sermaye', 'Atıl Sermaye'], 'c': 1, 'e': 'Üretim döngüsü içinde hızla paraya veya ürüne dönüşen sermaye unsurlarıdır.'}, {'q': 'Su ürünleri pazarlamasında, ürünün üreticiden çıkıp nihai tüketiciye ulaşana kadar geçen aşamalarda oluşan fiyat farkına ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Kâr oranı', 'Pazarlama Marjı', 'Katma Değer Vergisi', 'Lojistik Gideri', 'Brüt Satış'], 'c': 1, 'e': 'Bu marj; nakliye, işleme, depolama ve aracı karlarını kapsar.'}, {'q': 'Bir varlığın (gemi, havuz, makine) zamanla yıpranması veya eskimesi karşılığında her yıl ayrılan paya ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Sigorta', 'Amortisman', 'Stopaj', 'Reeskont', 'İhbar tazminatı'], 'c': 1, 'e': 'Duran varlıkların yenilenmesi için ayrılan aşınma payıdır.'}, {'q': "Su ürünleri sektöründe 'Arz Esnekliği'nin genellikle düşük olmasının temel sebebi nedir? (Su Ürünleri Ekonomisi)", 'o': ['Balıkçıların az olması', 'Balığın çabuk bozulan bir ürün olması ve üretim sürecinin doğaya/zamana bağlılığı', 'İthalatın çok olması', 'Tüketimin az olması', 'Balık fiyatlarının sabit olması'], 'c': 1, 'e': 'Fiyatlar aniden artsa bile yeni ürünün (yetiştiricilik veya avcılık) piyasaya sürülmesi hemen mümkün olmaz.'}, {'q': 'Ülkemizde iç sulardaki (baraj, göl vb.) ticari avcılık hakkı öncelikle hangi yapıya kiralama yoluyla verilir? (Su Ürünleri Ekonomisi)', 'o': ['Şahıs firmalarına', 'Yabancı şirketlere', 'Su Ürünleri Kooperatiflerine', 'Belediyelere', 'İhracatçı birliklerine'], 'c': 2, 'e': 'Yerel balıkçıların korunması amacıyla kooperatiflere rüçhan (öncelik) hakkı tanınır.'}, {'q': " 'Ölçek Ekonomisi' su ürünleri işletmelerinde neyi ifade eder? (Su Ürünleri Ekonomisi)", 'o': ['Küçük havuzların daha kârlı olmasını', 'Üretim kapasitesi arttıkça birim maliyetin düşmesini', 'Sadece büyük balıkların satılmasını', 'Yem fiyatlarının her yıl artmasını', 'Balıkçı sayısının azalmasını'], 'c': 1, 'e': 'Kapasite arttıkça sabit maliyetler daha fazla ürüne bölündüğü için birim maliyet azalır.'}, {'q': 'Bir su ürünleri işletmesinin yıllık toplam gelirinden, o yılki tüm üretim giderleri çıkarıldıktan sonra kalan tutara ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Safi Hasıla (Net Kâr)', 'Brüt Hasıla', 'Ciro', 'Değişken Gider', 'Yatırım Sermayesi'], 'c': 0, 'e': 'Tüm masraflar ve vergiler sonrası elde kalan net ekonomik sonuçtur.'}, {'q': 'Aşağıdakilerden hangisi su ürünleri dış ticaretinde kullanılan temel belgelerden biri değildir? (Su Ürünleri Ekonomisi)', 'o': ['Sağlık Sertifikası', 'Menşei Şahadetnamesi', 'Proforma Fatura', 'Ehliyet Belgesi', 'Gümrük Beyannamesi'], 'c': 3, 'e': 'Ehliyet bir ulaşım belgesidir, ticari emtia belgesi değildir.'}, {'q': "Su ürünlerinde 'Soğuk Zincir'in kırılması hangi ekonomik sonuca doğrudan yol açar? (Su Ürünleri Ekonomisi)", 'o': ['Balık ağırlığının artmasına', 'Nakliye süresinin kısalmasına', 'Ürünün raf ömrünün bitmesine ve ekonomik değer kaybına', 'Vergi indirimine', 'Yem tasarrufuna'], 'c': 2, 'e': 'Bozulma başladığı an ürünün ticari değeri düşer veya sıfırlanır.'}, {'q': 'Üretim için kullanılan bir kaynağın, seçilen iş yerine başka bir işte kullanılsaydı elde edilecek gelirden mahrum kalınmasına ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Sabit Maliyet', 'Gizli Maliyet', 'Fırsat Maliyeti', 'Marjinal Maliyet', 'Batık Maliyet'], 'c': 2, 'e': 'Alternatif kullanım alanlarından vazgeçmenin maliyetidir.'}, {'q': 'Su ürünleri kooperatiflerinin bağlı bulunduğu en üst çatı kuruluş hangisidir? (Su Ürünleri Ekonomisi)', 'o': ['TÜSİAD', 'SÜR-KOOP (Merkez Birliği)', 'Ziraat Odası', 'Esnaf Kefalet', 'TEMA'], 'c': 1, 'e': 'SÜR-KOOP sektörün en üst sivil toplum temsilcisidir.'}, {'q': "Bir su ürünleri işletmesinde 'Sabit Sermaye' unsuru olan kalem hangisidir? (Su Ürünleri Ekonomisi)", 'o': ['Balık yemi', 'Yavru balık', 'Kuluçkahane binası ve beton havuzlar', 'Elektrik faturası', 'Mazot'], 'c': 2, 'e': 'Uzun süreli kullanılan ve üretim döngüsünde hemen tükenmeyen varlıklardır.'}, {'q': " 'Dikey Entegrasyon' kavramı su ürünlerinde neyi tanımlar? (Su Ürünleri Ekonomisi)", 'o': ['Balıkların dik olarak paketlenmesini', 'Bir işletmenin yem üretimi, kuluçkahane, yetiştiricilik ve işleme tesisini bünyesinde toplaması', 'Sadece derin denizlerde avcılık yapılmasını', 'İhracatın artmasını', 'Balık boylarının ölçülmesini'], 'c': 1, 'e': 'Üretim zincirinin tüm halkalarına hakim olmak maliyet kontrolü sağlar.'}, {'q': "Aşağıdakilerden hangisi su ürünleri tüketimini etkileyen 'sosyo-ekonomik' faktörlerden biridir? (Su Ürünleri Ekonomisi)", 'o': ['Balığın yüzme hızı', 'Suyun tuzluluk oranı', 'Tüketicinin gelir düzeyi ve tercihleri', 'Balık ağının göz açıklığı', 'Teknenin motor gücü'], 'c': 2, 'e': 'Gelir ve eğitim seviyesi tüketim sıklığını belirleyen ana ekonomik unsurlardır.'}, {'q': 'Bir balıkçı gemisinin ekonomik ömrünü tamamlamasına rağmen fiziksel olarak varlığını sürdürmesine ne denir? (Su Ürünleri Ekonomisi)', 'o': ['Teknik Ömür', 'Ekonomik Ömür', 'Atıl Kapasite', 'Modernizasyon', 'Revizyon'], 'c': 0, 'e': 'Cihaz hala çalışabilir (teknik) ama kâr ettirme özelliğini yitirmiş (ekonomik) olabilir.'}, {'q': " 'Lojistik Maliyetler' kapsamına giren gider hangisidir? (Su Ürünleri Ekonomisi)", 'o': ['Yavru balık alımı', 'Soğutmalı taşıma aracı yakıtı ve navlun', 'İdari personel eğitimi', 'Havuz boyası', 'Banka havale ücreti'], 'c': 1, 'e': 'Ürünün taşınması ve depolanması ile ilgili tüm harcamalardır.'}, {'q': 'İşletmede üretilen her bir adet ek birim balığın maliyetine ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Ortalama Maliyet', 'Sabit Maliyet', 'Marjinal Maliyet', 'Brüt Maliyet', 'Nominal Maliyet'], 'c': 2, 'e': 'Son birim üretimin toplam maliyette yarattığı artıştır.'}, {'q': 'Toplam gelir ile toplam gider arasındaki farkın pozitif olması durumunda hangisi gerçekleşmiş olur? (Su Ürünleri Ekonomisi)', 'o': ['Net Zarar', 'Safi Hasıla (Kâr)', 'Değişken Maliyet Artışı', 'Amortisman Kayabı', 'Fırsat Maliyeti'], 'c': 1, 'e': 'Gelirlerin giderlerden fazla olması kârı (Safi Hasıla) ifade eder.'}, {'q': "Su ürünleri yetiştiricilik tesislerinde 'Kapasite Kullanım Oranı' aşağıdakilerden hangisini gösterir? (Su Ürünleri Ekonomisi)", 'o': ['Çalışan personel sayısını', 'Fiilen yapılan üretimin, yapılabilecek maksimum üretime oranını', 'Havuzların derinliğini', 'Balıkların günlük yem yeme miktarını', 'İhracatın toplam üretime oranını'], 'c': 1, 'e': 'Tesisin ne kadar verimli kullanıldığını gösteren temel parametredir.'}, {'q': 'Bir yatırım projesinin ekonomik olarak yapılabilir olup olmadığını analiz eden çalışmaya ne denir? (Su Ürünleri Ekonomisi)', 'o': ['Envanter çalışması', 'Fizibilite Etüdü', 'Biyolojik analiz', 'Topografik ölçüm', 'Nakliye planı'], 'c': 1, 'e': 'Fizibilite, teknik ve mali açılardan yatırımın mantıklı olup olmadığını ortaya koyar.'}, {'q': 'Kooperatiflerin ürünlerini daha iyi fiyata satabilmek için kurdukları tesislere ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Karantina tesisi', 'Sosyal tesis', 'İşleme ve Değerlendirme Tesisi', 'Kuluçkahane', 'Eğitim salonu'], 'c': 2, 'e': 'Ürünün işlenerek katma değer kazanması, üreticinin gelirini artırır.'}, {'q': " 'Pazar Araştırması' su ürünleri ekonomisinde hangi sorunun cevabını aramaz? (Su Ürünleri Ekonomisi)", 'o': ['Tüketici hangi balığı tercih ediyor?', 'Rakip ürünlerin fiyatları nedir?', 'Balıklar hangi derinlikte yumurtlar?', 'Ürün hangi dönemlerde daha çok satılıyor?', 'Dağıtım kanalları yeterli mi?'], 'c': 2, 'e': 'Yumurtlama derinliği biyolojik bir veridir; pazar araştırması ekonomik verilerle ilgilenir.'}, {'q': "Su ürünleri işletmelerinde kullanılan 'Öz Sermaye' kavramı hangisini kapsar? (Su Ürünleri Ekonomisi)", 'o': ['Bankadan alınan kredi', 'İşletme sahibinin kendi koyduğu sermaye ve birikmiş kârlar', 'Devletin verdiği geri ödemeli destekler', 'Tedarikçiye olan borçlar', 'Gelecekteki tahmini kazançlar'], 'c': 1, 'e': 'Öz sermaye, işletmenin dış borçlar hariç sahip olduğu kendi varlıklarıdır.'}, {'q': "Gökkuşağı alabalığının iç piyasadaki 'Talep Esnekliği'nin yüksek olması ne anlama gelir? (Su Ürünleri Ekonomisi)", 'o': ['Fiyat az bir miktar arttığında, tüketimin önemli ölçüde azalması', 'Her mevsim aynı miktarda tüketilmesi', 'Sadece zenginler tarafından alınması', 'Üretimin sınırsız olması', 'Fiyat değişiminden etkilenmemesi'], 'c': 0, 'e': 'Esnekliğin yüksek olması, tüketicinin ikame ürünlere (tavuk vb.) yönelebileceğini gösterir.'}, {'q': "Aşağıdakilerden hangisi su ürünleri sektöründe 'Gizli Maliyet' olarak değerlendirilebilir? (Su Ürünleri Ekonomisi)", 'o': ['Yem faturası', 'Elektrik gideri', 'Aile fertlerinin işletmede ücretsiz çalışması', 'Mazot fişi', 'Balıkçı ruhsat harcı'], 'c': 2, 'e': 'Nakit çıkışı olmadığı için defterlere girmez ancak ekonomik analizde hesaplanmalıdır.'}, {'q': " 'Teknik Verimlilik' ile 'Ekonomik Verimlilik' arasındaki temel fark nedir? (Su Ürünleri Ekonomisi)", 'o': ['Fark yoktur.', 'Teknik verimlilik miktar (kg), ekonomik verimlilik parasal (TL) sonuçlarla ilgilidir.', 'Teknik verimlilik denizde, ekonomik verimlilik gölde olur.', 'Ekonomik verimlilik sadece ihracattır.', 'Teknik verimlilik sadece yemle ilgilidir.'], 'c': 1, 'e': 'Biri fiziksel dönüşümü, diğeri bu sürecin kârlılığını ölçer.'}, {'q': " 'Markalaşma' su ürünleri işletmelerine ekonomik olarak ne sağlar? (Su Ürünleri Ekonomisi)", 'o': ['Balıkların daha hızlı büyümesini', 'Ürünün ayırt edilmesini ve tüketici sadakatiyle yüksek fiyata satılmasını', 'Vergi muafiyeti', 'Elektrik tasarrufu', 'Balıkların daha az yem yemesini'], 'c': 1, 'e': 'Marka, ürüne kimlik kazandırarak rekabet gücü ve katma değer sağlar.'}, {'q': 'Bir balıkçı teknesinin yıllık toplam masrafları içinde en büyük payı hangisi alır? (Su Ürünleri Ekonomisi)', 'o': ['Buz masrafı', 'Kumanya masrafı', 'Akaryakıt (Mazot) ve yağ giderleri', 'Ağ tamir masrafı', 'Ruhsat harçları'], 'c': 2, 'e': 'Avcılık operasyonlarının en büyük değişken maliyet kalemi enerjidir.'}, {'q': "İşletmenin varlıklarının değerini yitirmesi sonucu oluşan 'Değer Kaybı' hangi terimle ifade edilir? (Su Ürünleri Ekonomisi)", 'o': ['Revalüasyon', 'Deflasyon', 'Depresiasyon (Amortisman)', 'Enflasyon', 'Stagflasyon'], 'c': 2, 'e': 'Sabit varlıkların yıpranma payının parasal karşılığıdır.'}, {'q': "Su ürünlerinde 'Arz Fazlası' oluştuğunda piyasayı dengelemek için kullanılan yöntem hangisidir? (Su Ürünleri Ekonomisi)", 'o': ['Daha çok avcılık yapmak', 'Ürünlerin dondurularak/işlenerek zamana yayılması', 'Balık fiyatlarını yükseltmek', 'Yemlemeyi artırmak', 'İthalatı teşvik etmek'], 'c': 1, 'e': 'Ürün depolanırsa piyasadaki arz baskısı azalır ve fiyat çökmesi engellenir.'}, {'q': 'Bir su ürünleri işletmesinin borçlarını ödeme gücünü gösteren rasyoya ne ad verilir? (Su Ürünleri Ekonomisi)', 'o': ['Likidite Oranı', 'Mortalite Oranı', 'Kondisyon Faktörü', 'FCR', 'Stok Yoğunluğu'], 'c': 0, 'e': 'Varlıkların kısa vadeli borçları karşılama kapasitesidir.'}, {'q': "Su ürünleri sektöründe 'İkame Ürün' ne demektir? (Su Ürünleri Ekonomisi)", 'o': ['Balıkla birlikte yenen ürün', 'Balık fiyatı arttığında tüketicinin yönelebileceği alternatif (Tavuk vb.)', 'Balığın kılçığı', 'Teknenin yedeği', 'Bozuk balık'], 'c': 1, 'e': 'Tüketicinin ihtiyacını benzer şekilde karşılayan diğer gıdalardır.'}, {'q': "Hangisi 'Makro Ekonomi'nin su ürünleri sektörü üzerindeki bir etkisidir? (Su Ürünleri Ekonomisi)", 'o': ['İşletmedeki bir işçinin mesai saati', 'Döviz kuru değişimlerinin ihracat gelirlerini etkilemesi', 'Bir havuzun su giriş hızı', 'Balıkçı teknesinin boyası', 'Yem çuvalının ağırlığı'], 'c': 1, 'e': 'Makro ekonomi kur, enflasyon gibi genel ülke verilerinin sektöre yansımasıdır.'}, {'q': "Ülkemizde su ürünleri sektöründe 'Üretici Örgütlenmesi'nin temel amacı nedir? (Su Ürünleri Ekonomisi)", 'o': ['Sadece piknik yapmak', 'Pazarlık gücünü artırarak girdileri ucuza alıp ürünleri pahalıya satmak', 'Devletten kaçmak', 'Balık sayısını azaltmak', 'Sadece tekneleri boyamak'], 'c': 1, 'e': 'Birlikte hareket etmek, küçük üreticinin büyük alıcı karşısında ezilmesini önler.'}, {'q': 'Bir yatırımın kendisini kaç yılda geri ödeyeceğini gösteren analize ne denir? (Su Ürünleri Ekonomisi)', 'o': ['Geri Ödeme Süresi', 'Net Bugünkü Değer', 'İç Kârlılık Oranı', 'Marjinal Verim', 'Amortisman Süresi'], 'c': 0, 'e': 'Yatırım tutarının yıllık net nakit girişlerine bölünmesiyle bulunur.'}, {'q': " 'Risk' ve 'Belirsizlik' arasındaki temel fark su ürünlerinde nasıl açıklanır? (Su Ürünleri Ekonomisi)", 'o': ['Fark yoktur.', 'Risk hesaplanabilir (Hastalık), belirsizlik öngörülemez (Savaş).', 'Risk denizde, belirsizlik karada olur.', 'Belirsizlik iyi bir şeydir.', 'Risk sadece parayla ilgilidir.'], 'c': 1, 'e': 'Risk veriyle tahmin edilebilir, belirsizlik için veri yoktur.'}, {'q': "Su ürünleri yetiştiriciliğinde 'Birim Maliyet' nasıl hesaplanır? (Su Ürünleri Ekonomisi)", 'o': ['Toplam Maliyet / Toplam Üretim Miktarı', 'Toplam Gelir x Toplam Gider', 'Yem Fiyatı / Balık Sayısı', 'Havuz Sayısı / İşçi Sayısı', 'Satış Fiyatı + KDV'], 'c': 0, 'e': 'Bir kilo balığı üretmek için harcanan ortalama paradır.'}, {'q': " 'Amortisman' (Aşınma Payı) hesaplanırken hangisi dikkate alınmaz? (Su Ürünleri Ekonomisi)", 'o': ['Varlığın alış fiyatı', 'Varlığın ekonomik ömrü', 'Varlığın hurda değeri', 'Balıkların günlük yem tüketim miktarı', 'Varlığın kurulum giderleri'], 'c': 3, 'e': 'Amortisman sabit varlıklar içindir; yem tüketimi ise bir işletme gideridir.'}, {'q': "Su ürünleri sektöründe 'Fiyat Esnekliği' kavramı neyi ölçer? (Su Ürünleri Ekonomisi)", 'o': ['Balığın esneme kapasitesini', 'Fiyattaki değişimin, talep edilen miktarda yarattığı yüzde değişimi', 'Ağ atma mesafesini', 'Yemin çözünme hızını', 'Sıcaklığa toleransı'], 'c': 1, 'e': 'Tüketicinin fiyat değişimlerine karşı gösterdiği ekonomik duyarlılıktır.'}, {'q': "İşletme yönetiminde 'ROI' (Return on Investment) neyi ifade eder? (Su Ürünleri Ekonomisi)", 'o': ['Yumurta verimini', 'Yatırımın Geri Dönüş Oranını (Kârlılığını)', 'Oksijen miktarını', 'İşçi başına balık sayısını', 'Yemdeki protein oranını'], 'c': 1, 'e': "ROI, 'Net Kâr / Yatırım Maliyeti' ile hesaplanan başarı ölçüsüdür."}, {'q': " 'Sözleşmeli Üretim' modelinin en büyük ekonomik avantajı nedir? (Su Ürünleri Ekonomisi)", 'o': ['Balıkların renkli olması', 'Üreticinin pazar garantisi alması ve fiyat riskinden korunması', 'Suyun temiz kalması', 'Daha az işçi', 'Göç engeli'], 'c': 1, 'e': 'Üretici ne kadar ve hangi fiyattan satacağını önceden bilir.'}, {'q': "Su ürünleri pazarlamasında 'Standardizasyon' ne demektir? (Su Ürünleri Ekonomisi)", 'o': ['Farklı fiyatlandırma', 'Ürünlerin boy, tazelik ve kaliteye göre sınıflara ayrılması', 'Dondurulmuş satış', 'Tek tip yem', 'Aynı renk tekneler'], 'c': 1, 'e': 'Standardizasyon alıcıda güven oluşturur ve fiyatlandırmayı kolaylaştırır.'}, {'q': "Bir işletmenin 'Likidite' sorunu yaşaması ne anlama gelir? (Su Ürünleri Ekonomisi)", 'o': ['Suyun kuruması', 'Vadesi gelen borçları ödeyecek nakit paranın bulunamaması', 'Hızlı yüzme', 'Yem batmaması', 'Aşırı yosun'], 'c': 1, 'e': 'İşletmenin malı olabilir ama kasasında nakit yoksa borcunu ödeyemez.'}, {'q': "Hangisi su ürünlerinde 'Görünmez İhracat' olarak kabul edilebilir? (Su Ürünleri Ekonomisi)", 'o': ['Tırla balık gönderimi', 'Turistlerin ülkemizde tükettiği balık ve amatör balıkçılık gelirleri', 'Kaçak avcılık', 'Pul satışı', 'İnternet siparişi'], 'c': 1, 'e': 'Ürünün gümrükten geçmediği ancak döviz girişinin sağlandığı hizmetlerdir.'}, {'q': " 'Monopol' (Tekel) piyasa yapısı su ürünlerinde neden arzu edilmez? (Su Ürünleri Ekonomisi)", 'o': ['Tür çokluğu nedeniyle', 'Tek satıcının fiyatı istediği gibi belirleyip tüketiciyi mağdur etme riski', 'Yalnızlık sevgisi', 'Vergi alamama', 'Yem fiyatı düşüşü'], 'c': 1, 'e': 'Rekabetin olmadığı yerde fiyatlar yükselir, kalite düşer.'}, {'q': " 'Başa Baş Analizi' yapılırken hangi veri setine ihtiyaç duyulur? (Su Ürünleri Ekonomisi)", 'o': ['Su sıcaklığı ve oksijen', 'Sabit maliyetler, birim değişken maliyet ve satış fiyatı', 'Balıkçının yaşı', 'Teknenin hızı', 'Şehre uzaklık'], 'c': 1, 'e': 'Bu veriler kâra geçiş noktasını hesaplamak için şarttır.'}, {'q': " 'Katma Değer' kavramı su ürünlerinde en çok hangi aşamada oluşturulur? (Su Ürünleri Ekonomisi)", 'o': ['Sudan çıkarma', 'Temizleme, fileto yapma veya paketleme (İşleme)', 'Tartma', 'Yükleme', 'Buz dökme'], 'c': 1, 'e': 'Hammaddeye yapılan her işlem ürünün son fiyatını ve değerini artırır.'}, {'q': " 'Envanter Yönetimi' su ürünlerinde neden kritiktir? (Su Ürünleri Ekonomisi)", 'o': ['Eğlence için', 'Stoktaki yemin bozulma riskini ve finansal yükünü minimize etmek için', 'İsimleri unutmamak', 'Havuz artışı', 'Vergi ödemesi'], 'c': 1, 'e': 'Sermayeyi bağlamadan üretimi aksatmayacak dengeyi kurmaktır.'}, {'q': "Bir su ürünleri projesinde 'İç Kârlılık Oranı' (İKO) neyi ifade eder? (Su Ürünleri Ekonomisi)", 'o': ['Su miktarını', 'Yatırımın gerçek verimi (Nakit akışını sıfıra eşitleyen iskonto oranı)', 'İç organ ağırlığı', 'Kapalı alan miktarı', 'Yem fabrikası kârı'], 'c': 1, 'e': 'İKO, bir yatırımın ne kadar kârlı olduğunu gösteren hassas ölçüttür.'}, {'q': "Hangisi 'Aracıların' (Kabzımal vb.) temel fonksiyonlarından biridir? (Su Ürünleri Ekonomisi)", 'o': ['Balığı beslemek', 'Ürünü küçük miktarlara bölüp perakendeciye ulaştırmak ve risk üstlenmek', 'Genetik değişim', 'Tekne bakımı', 'Kirlilik temizliği'], 'c': 1, 'e': 'Aracılar toplama, sınıflandırma ve finansal risk üstlenme görevini yapar.'}, {'q': " 'Azalan Verimler Kanunu' yetiştiricilikte neyi açıklar? (Su Ürünleri Ekonomisi)", 'o': ['Yaşlı balık yüzüşü', 'Havuza belirli noktadan sonra eklenen girdi/yemin katkısının azalması', 'Su azlığı büyümesi', 'Yem fiyatı düşüşü', 'İşçi azlığı kârı'], 'c': 1, 'e': 'Kapasite dolduğunda daha fazla yem veya balık verimi artırmaz, düşürür.'}, {'q': "Bir işletmenin 'Net Çalışma Sermayesi' nasıl hesaplanır? (Su Ürünleri Ekonomisi)", 'o': ['Varlık + Borç', 'Dönen Varlıklar - Kısa Vadeli Borçlar', 'Kasadaki Para', 'Bina / Havuz', 'Fiyat x Miktar'], 'c': 1, 'e': 'Günlük faaliyetlerin (yem, maaş vb.) yürütülmesini sağlayan likit güçtür.'}, {'q': " 'Marka Primi' su ürünleri pazarında neyi ifade eder? (Su Ürünleri Ekonomisi)", 'o': ['Bahşiş', 'Tüketicinin güvenilen bir marka için ödediği fazla tutar', 'Pul sayısı', 'İhracat bonusu', 'Yem hediyesi'], 'c': 1, 'e': 'Tüketici güven duyduğu isim için isimsiz ürüne göre fazla öder.'}, {'q': "Hangisi su ürünleri sektöründe 'Arz'ı etkileyen bir faktör değildir? (Su Ürünleri Ekonomisi)", 'o': ['Üretim teknolojisi', 'Girdi fiyatları', 'İklim koşulları', 'Tüketicinin damak zevkinin değişmesi', 'Devlet teşvikleri'], 'c': 3, 'e': "Tüketici zevki 'Talep' tarafını etkiler; Arz'ı değil."}, {'q': "Kooperatiflerde 'Risturn' (Kâr Payı Dağıtımı) nedir? (Su Ürünleri Ekonomisi)", 'o': ['Aidat', 'Kârın, ortakların işlem hacmi oranında dağıtılması', 'Tekne cihazı', 'Deniz çöpü', 'Yem cirosu'], 'c': 1, 'e': 'Kooperatife ne kadar ürün verdiyse veya aldıysa o oranda pay almasıdır.'}, {'q': " 'Değişken Maliyetler'in payının artması işletme için ne anlama gelir? (Su Ürünleri Ekonomisi)", 'o': ['Güvenlik', 'Üretim durduğunda maliyetlerin hızla azalabilmesi (Esneklik)', 'Zarar', 'Bina yatırımı', 'Yavaş büyüme'], 'c': 1, 'e': 'Değişken maliyetli işletmeler krizde üretimi durdurup masraftan kaçabilir.'}, {'q': "Balıkçı gemisinde 'Sürdürülebilir Ekonomik Verim' (MEY) neyi hedefler? (Su Ürünleri Ekonomisi)", 'o': ['Balıkları bitirmeyi', 'Stokları korurken uzun vadede en yüksek net ekonomik kârı elde etmeyi', 'Büyük tekne', 'Hızlı zenginlik', 'Yakıt tasarrufu'], 'c': 1, 'e': 'Masrafları da dikkate alarak en kârlı avcılık seviyesinde kalmaktır.'}, {'q': "1380 Sayılı Su Ürünleri Kanunu'na göre, avlanma yasaklarını, yerlerini ve zamanlarını belirleme yetkisi hangi kuruma aittir? (Su Ürünleri Mevzuatı)", 'o': ['Çevre Bakanlığı', 'Tarım ve Orman Bakanlığı', 'İçişleri Bakanlığı', 'Sahil Güvenlik', 'Deniz Ticaret Odası'], 'c': 1, 'e': "1380 Sayılı Kanun'un ana yürütücüsü Tarım ve Orman Bakanlığıdır; tebliğleri o yayımlar."}, {'q': 'İstihsal yerlerinde patlayıcı veya uyuşturucu madde kullanılmasıyla ilgili yasak kapsamı hangisidir? (Su Ürünleri Mevzuatı)', 'o': ['Gündüz yasaktır', 'Sadece iç sularda yasaktır', 'Kesinlikle yasaktır', 'İzinle serbesttir', 'Yabancılara yasaktır'], 'c': 2, 'e': 'Ekosisteme büyük zarar verdiği için bu yöntemler istisnasız ve kesin olarak yasaklanmıştır.'}, {'q': " 'Boy Yasağı' kavramı mevzuatta neyi ifade eder? (Su Ürünleri Mevzuatı)", 'o': ['Tekne boyunu', 'Ağ uzunluğunu', 'Asgari avlanma uzunluğunu', 'Liman derinliğini', 'Personel boyunu'], 'c': 2, 'e': 'Balığın en az bir kez üremesine izin vermek için konulan bilimsel bir kısıtlamadır.'}, {'q': 'Yetiştiricilik tesisi kurmak isteyenlerin alması gereken ilk onay hangisidir? (Su Ürünleri Mevzuatı)', 'o': ['Belediye ruhsatı', 'Vergi kaydı', 'Ön İzin', 'İhracat izni', 'Sağlık belgesi'], 'c': 2, 'e': "Tesis kurulmadan önce alanın uygunluğu için Bakanlıktan 'Ön İzin' alınması ilk adımdır."}, {'q': 'Denetimlerde canlı olduğu tespit edilen yasak avlanmış ürünlere ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['İmha edilir', 'Derhal suya iade edilir', 'Pazarda satılır', 'Balıkçıya bırakılır', 'Dondurulur'], 'c': 1, 'e': 'Kanunun amacı kaynağı korumaktır; canlı ürün öncelikle doğaya kazandırılır.'}, {'q': 'Amatör balıkçıların avladıkları ürünlerle ilgili hangisi doğrudur? (Su Ürünleri Mevzuatı)', 'o': ['Satabilirler', 'Takas yapabilirler', 'Satış yapmaları yasaktır', 'Belediyeye verirler', 'Lokantaya satarlar'], 'c': 2, 'e': 'Amatör avcılık sadece spor ve kişisel tüketim içindir, ticarete konu edilemez.'}, {'q': 'Ruhsat tezkerelerinin vize işleminin yaptırılmaması sonucu ne olur? (Su Ürünleri Mevzuatı)', 'o': ['Otomatik yenilenir', 'Ruhsat askıya alınır/iptal edilir', 'Yeni tekne verilir', 'Sözlü uyarı yapılır', 'Vergi silinir'], 'c': 1, 'e': 'Vize edilmeyen ruhsat geçersiz sayılır; bu tekneyle avcılık yapmak ruhsatsız avcılık demektir.'}, {'q': 'İstihsal hakkı kiralamalarında süre en fazla kaç yıl olabilir? (Su Ürünleri Mevzuatı)', 'o': ['5', '10', '15', '25', '49'], 'c': 2, 'e': 'Su ürünleri üretim alanları genellikle en fazla 15 yıl süreyle kiralanabilmektedir.'}, {'q': "Hangisi 1380 Sayılı Kanun'a göre denetim yetkili personelden biri değildir? (Su Ürünleri Mevzuatı)", 'o': ['Mühendis (Bakanlık)', 'Sahil Güvenlik', 'Emniyet/Jandarma', 'Orman Muhafaza Memuru', 'Gümrük Muhafaza'], 'c': 3, 'e': 'Denetim yetkisi Bakanlık teknik personeli ve genel kolluk kuvvetlerine aittir.'}, {'q': " 'Zaman Yasağı'nın temel amacı nedir? (Su Ürünleri Mevzuatı)", 'o': ['Balıkçı tatili', 'Üreme döneminde stokları korumak', 'Motor dinlendirmek', 'Fiyat yükseltmek', 'Ağ kurutmak'], 'c': 1, 'e': 'Balıkların yumurta bıraktığı dönemde avcılığı durdurarak neslin devamı sağlanır.'}, {'q': 'Ruhsat Tezkeresi alması zorunlu olanlar kimlerdir? (Su Ürünleri Mevzuatı)', 'o': ['Hobi balıkçıları', 'Ticari avcılar ve gemiler', 'Balık tüketicileri', 'Nakliye şoförleri', 'Market müşterileri'], 'c': 1, 'e': 'Ticari faaliyet yürüten her kişi ve her tekne ruhsatlı olmak zorundadır.'}, {'q': 'Yetiştiricilikte ÇED süreci hangi aşamada devreye girer? (Su Ürünleri Mevzuatı)', 'o': ['Satışta', 'Proje ve yer seçimi aşamasında', 'İflas anında', 'Yemlemede', 'İhracatta'], 'c': 1, 'e': 'Çevresel Etki Değerlendirmesi, tesis kurulmadan önce çevreye zarar riskini ölçmek için yapılır.'}, {'q': "İç sular ve denizlerdeki 'Trol' yasağına ilişkin yetki kimdedir? (Su Ürünleri Mevzuatı)", 'o': ['Belediyeler', 'Bakanlık', 'Kooperatifler', 'Muhtarlıklar', 'Valilikler'], 'c': 1, 'e': 'Ağır av araçlarının kullanım şartları sadece Bakanlık tebliğleri ile belirlenir.'}, {'q': 'Karaya çıkış noktalarında düzenlenen ve ürünün kaynağını gösteren belge hangisidir? (Su Ürünleri Mevzuatı)', 'o': ['Vergi Levhası', 'Müstahsil Makbuzu', 'Nakil Belgesi', 'İrsaliye', 'Sağlık Sertifikası'], 'c': 2, 'e': 'Nakil belgesi, ürünün yasal bir avlak sahasından geldiğini ispatlar.'}, {'q': "Yetiştiricilik Belgesi'nde hangisinin bulunması zorunlu değildir? (Su Ürünleri Mevzuatı)", 'o': ['Kapasite', 'Tür ismi', 'Sahip bilgisi', 'Yem markası', 'Onay no'], 'c': 3, 'e': 'Yem markası ticari bir tercihtir, resmi yetiştiricilik belgesinde yer almaz.'}, {'q': '2020 değişikliği ile kaçak avcılıkta kullanılan gemilere hangi yaptırım gelmiştir? (Su Ürünleri Mevzuatı)', 'o': ['Batırma', 'İade', 'Mülkiyetin kamuya geçirilmesi', 'Boyama', 'Renk değişimi'], 'c': 2, 'e': 'Ağır ihlallerde gemiye devlet tarafından tamamen el konulabilmesinin önü açılmıştır.'}, {'q': 'Amatör balıkçıların bir günde avlayabileceği miktar sınırına ne denir? (Su Ürünleri Mevzuatı)', 'o': ['Stok', 'Kota', 'Alıkonulabilir miktar', 'Envanter', 'İrsaliye'], 'c': 2, 'e': 'Kişi başı günlük kilo veya adet sınırıdır.'}, {'q': " 'Göz Açıklığı' sınırlaması hangi araç içindir? (Su Ürünleri Mevzuatı)", 'o': ['Olta', 'Zıpkın', 'Ağlar', 'Parakete', 'Sepet'], 'c': 2, 'e': 'Küçük balıkların kaçabilmesi için ağ gözeneklerinin belirli bir boyutta olması şarttır.'}, {'q': 'Yasak sahada avcılık yapmanın hukuki sonucu nedir? (Su Ürünleri Mevzuatı)', 'o': ['Uyarı', 'Para cezası ve el koyma', 'Ödül', 'Ağ kontrolü', 'İşlemsizlik'], 'c': 1, 'e': 'Yasak saha ihlalleri doğrudan idari para cezası ve ürünlere el koyma gerektirir.'}, {'q': 'Perakende yerinde boy yasağına aykırı ürün tespiti durumunda ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Çöpe atılır', 'El konulur ve ceza kesilir', 'İndirim yapılır', 'Yer değiştirilir', 'Müşteri uyarılır'], 'c': 1, 'e': 'Sadece avlayan değil, satan ve nakleden de kanun önünde sorumludur.'}, {'q': 'Bilimsel araştırmalar için yasaklardan muafiyet iznini kim verir? (Su Ürünleri Mevzuatı)', 'o': ['TÜBİTAK', 'MEB', 'Tarım ve Orman Bakanlığı', 'Deniz Kuvvetleri', 'Belediye'], 'c': 2, 'e': 'Stok tespiti amaçlı avcılıkta izin yetkisi sadece Bakanlıktadır.'}, {'q': " 'Işıkla Avcılık' ile ilgili hangisi doğrudur? (Su Ürünleri Mevzuatı)", 'o': ['Hep serbest', 'Hep yasak', 'Bakanlıkça özel şartlarla izin verilebilir', 'Sadece amatöre serbest', 'Sınır yoktur'], 'c': 2, 'e': 'Sadece belirli türler ve bölgeler için sınırlı izinler mevcuttur.'}, {'q': " 'Jurnal' (Av Günlüğü) tutma zorunluluğu hangi gemiler içindir? (Su Ürünleri Mevzuatı)", 'o': ['5m altı', '10m ve üzeri ticari gemiler', 'Amatörler', 'Yabancılar', 'Zorunlu değil'], 'c': 1, 'e': '10 metre ve üzeri gemiler operasyon detaylarını bildirmekle yükümlüdür.'}, {'q': 'Pazara arz ve nakil sırasında hangi belge zorunludur? (Su Ürünleri Mevzuatı)', 'o': ['Esnaf kaydı', 'Nakil/Menşei Belgesi', 'Gemi elverişlilik', 'Nüfus cüzdanı', 'Yakıt fişi'], 'c': 1, 'e': 'Ürünün yasal yolla avlandığını kanıtlayan ana belgedir.'}, {'q': 'İzinsiz kapasite artırımı yapan tesise ne uygulanır? (Su Ürünleri Mevzuatı)', 'o': ['Madalya', 'Uyarı', 'Faaliyet durdurma ve para cezası', 'Kamulaştırma', 'Ertelenme'], 'c': 2, 'e': 'Onaylı projenin dışına çıkmak mevzuat ihlalidir.'}, {'q': 'Denetimde görevli memura mukavemet etmenin sonucu nedir? (Su Ürünleri Mevzuatı)', 'o': ['Memur gider', 'Ceza artar ve adli işlem başlar', 'Ek süre verilir', 'Sadece ağ alınır', 'Ruhsat verilir'], 'c': 1, 'e': 'Kamu görevlisini engellemek hem idari hem adli suçtur.'}, {'q': 'Yasak sahada yasak ağın gemide bulundurulması ne sayılır? (Su Ürünleri Mevzuatı)', 'o': ['Suç değildir', 'Kural ihlali sayılabilir', 'Her zaman serbest', 'Sadece kışın serbest', 'Vergiye tabi'], 'c': 1, 'e': 'Yasaklı takımların operasyona hazır halde tutulması ceza sebebidir.'}, {'q': 'Ağ göz açıklığı ölçümü nasıl yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Rastgele', 'Islak ağda tam gerilerek düğümler arası', 'Ağırlığa bakarak', 'Renge göre', 'Kuru ağda'], 'c': 1, 'e': 'Teknik standart, ıslak ve gergin haldeki ölçümdür.'}, {'q': 'Yasal olmayan ürünü ticari amaçla alanlara ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Sorumlu değiller', 'Sadece avcıya ceza', 'Alan ve satana da ceza ve el koyma', 'Teşekkür', 'Bedel iadesi'], 'c': 2, 'e': 'Mevzuat zincirleme sorumluluk ilkesini benimser.'}, {'q': 'Etikette hangisinin bulunması zorunlu değildir? (Su Ürünleri Mevzuatı)', 'o': ['Tür adı', 'Av yeri', 'Fiyat', 'Kaptan adı', 'Üretim tarihi'], 'c': 3, 'e': 'Tüketiciyi ilgilendirmeyen şahsi bilgiler etikette şart değildir.'}, {'q': 'İç sularda bir kişinin kullanabileceği max olta/iğne sayısı nedir? (Su Ürünleri Mevzuatı)', 'o': ['Sınırsız', '2 olta / toplam 6 iğne', '1 iğne', '10 olta', 'Sadece ağ'], 'c': 1, 'e': 'Amatör tebliğin getirdiği sportif avcılık sınırıdır.'}, {'q': 'Ruhsatsız ticari avcılık yapan gemiye hangisi uygulanmaz? (Su Ürünleri Mevzuatı)', 'o': ['Para cezası', 'Ağa el koyma', 'Ürüne el koyma', 'Beyaza boyama', 'Men etme'], 'c': 3, 'e': 'Mevzuatta boyama gibi bir ceza türü yoktur.'}, {'q': 'Yapay resif alanlarında avcılık durumu nedir? (Su Ürünleri Mevzuatı)', 'o': ['Serbest', 'Genellikle yasaktır', 'Sadece trol', 'Gece serbest', 'Sökülebilir'], 'c': 1, 'e': 'Koruma bölgesi statüsündedirler.'}, {'q': 'Nakil belgesi ile araçtaki miktar uyumsuzsa ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Görmezden gelinir', 'Tüm ürüne el konulur ve ceza', 'Fark alınır', 'Yol tarifi', 'Yeni belge'], 'c': 1, 'e': 'İzlenebilirlik ilkesinin ihlali ağır yaptırım gerektirir.'}, {'q': 'Destekleme almak için hangi sisteme kayıt şarttır? (Su Ürünleri Mevzuatı)', 'o': ['MERNİS', 'E-Okul', 'SKS (Su Ürünleri Kayıt Sistemi)', 'Tapu', 'SGK'], 'c': 2, 'e': 'Bakanlığın resmi veri tabanıdır.'}, {'q': 'Su kirliliği yaratan işletmeye yaptırımı kim belirler? (Su Ürünleri Mevzuatı)', 'o': ['Muhtar', 'İlgili Bakanlıklar ve Valilikler', 'Koop başkanı', 'Teknisyen', 'Meteoroloji'], 'c': 1, 'e': 'Çevre ve Su Ürünleri kanunları ortak işletilir.'}, {'q': 'Orkinos avcılığı için gereken özel şart nedir? (Su Ürünleri Mevzuatı)', 'o': ['Serbesttir', 'Özel Avcılık İzin Belgesi (Kota)', 'Pazar günü avlanır', 'Zıpkın şartı', 'Kısıtlama yok'], 'c': 1, 'e': 'Uluslararası (ICCAT) kotalara tabidir.'}, {'q': 'Amatörün zıpkınla avlanmasında mevzuat yasağı hangisidir? (Su Ürünleri Mevzuatı)', 'o': ['Tamamen yasak', 'Gece zıpkınla avcılık yasaktır', 'Kışın yasak', 'Derinde yasak', 'Sadece köpekbalığı'], 'c': 1, 'e': 'Gece su altında ışık/zıpkın kullanımı etik ve yasal değildir.'}, {'q': 'Tüketime uygun olmayan el konulan ürünlere ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Barınağa verilir', 'Usulüne uygun imha edilir', 'Denize dökülür', 'Fakire verilir', 'Ucuza satılır'], 'c': 1, 'e': 'Gıda güvenliği gereği gıda zincirine girmesi engellenir.'}, {'q': 'Su Ürünleri Tebliğleri kural olarak kaç yılda bir yayımlanır? (Su Ürünleri Mevzuatı)', 'o': ['Her ay', '6 ay', '4 yılda bir', '10 yıl', 'Seçimde'], 'c': 2, 'e': '4 yıllık dönemleri kapsar ancak acil durumda güncellenebilir.'}, {'q': 'İstihsal yerinde sahipsiz bırakılan av araçlarına ne yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Sahibi beklenir', 'Hediye edilir', 'El konulur (Sahipsiz sayılır)', 'Suda kalır', 'Boyanır'], 'c': 2, 'e': 'Hayalet balıkçılığı önlemek için dönem dışı ağlar toplanır.'}, {'q': 'Denizde emniyet mesafesi ihlalinde yetkili birim hangisidir? (Su Ürünleri Mevzuatı)', 'o': ['Orman', 'Sahil Güvenlik / Liman Başkanlığı', 'Zabıta', 'Karayolları', 'Meteoroloji'], 'c': 1, 'e': 'Seyir ve av güvenliği bu birimlerin yetkisindedir.'}, {'q': 'İdari para cezasına itiraz nereye yapılır? (Su Ürünleri Mevzuatı)', 'o': ['Valilik', 'Sulh Ceza Hakimliği (15 gün)', 'Tarım İl Müd.', 'Anayasa Mahk.', 'Belediye'], 'c': 1, 'e': "Kabahatler Kanunu uyarınca yetkili yer Sulh Ceza'dır."}, {'q': " 'Iğrıp ve Manyat' ağlarının denizlerdeki durumu nedir? (Su Ürünleri Mevzuatı)", 'o': ['Serbest', 'Tamamen yasaktır', 'Gece serbest', 'Amatöre serbest', 'Motor gücüne bağlı'], 'c': 1, 'e': 'Kıyı ekosistemini kazıdığı için yasaklanmıştır.'}, {'q': 'Uluslararası sularda avlanacak geminin alması gereken belge? (Su Ürünleri Mevzuatı)', 'o': ['Transit', 'Uzak denizler avcılık izin belgesi', 'Pasaport', 'Beyanname', 'Sertifika'], 'c': 1, 'e': 'Bayrak devleti sorumluluğu gereği Bakanlık izni şarttır.'}, {'q': 'Yasak Türler (Mersin Balığı vb.) avlandığında ne yapılmalıdır? (Su Ürünleri Mevzuatı)', 'o': ['Pazara gider', 'Canlı ise derhal iade edilir', 'Dolapta saklanır', 'Karıştırılır', 'Satılır'], 'c': 1, 'e': 'Bu türlerin karaya çıkarılması mutlak yasaktır.'}, {'q': 'Gemilerin ve ruhsatların kayıtlı olduğu dijital sistem? (Su Ürünleri Mevzuatı)', 'o': ['E-Devlet', 'SUBİS', 'Vedop', 'UYAP', 'Pol-Net'], 'c': 1, 'e': 'Su Ürünleri Bilgi Sistemi ana veri tabanıdır.'}, {'q': 'El konulan istihsal vasıtaları nerede muhafaza edilir? (Su Ürünleri Mevzuatı)', 'o': ['Evde', 'Yediemin depolarında', 'Hurdacıda', 'Yol kenarında', 'Çöplükte'], 'c': 1, 'e': 'Hukuki süreç bitene kadar devlet korumasındadır.'}, {'q': "Amatörün iç sularda 'Kerevit' avlaması durumu? (Su Ürünleri Mevzuatı)", 'o': ['Elle serbest', 'Tamamen yasaktır', 'Sepetle serbest', 'Gece serbest', 'Kışın serbest'], 'c': 1, 'e': 'Kerevit avcılığı sadece ticari ruhsatlılara izne tabidir.'}, {'q': 'Gemi ruhsat vize cezası neye göre hesaplanır? (Su Ürünleri Mevzuatı)', 'o': ['Hız', 'Geminin tam boyu', 'Tayfa sayısı', 'Yakıt', 'Yaş'], 'c': 1, 'e': 'Cezalar ve harçlar gemi boyuna göre kademelidir.'}, {'q': 'Işıkla avcılıkta toplam güç sınırı genel olarak ne kadardır? (Su Ürünleri Mevzuatı)', 'o': ['1000W', '8000W', 'Sınır yok', '10W', '50000W'], 'c': 1, 'e': 'Tebliğde belirtilen lümen ve güç sınırlarına uyulmalıdır.'}, {'q': 'Ölçüm cetveli denetimde ne için kullanılır? (Su Ürünleri Mevzuatı)', 'o': ['Tazelik', 'Tür tayini', 'Boy yasağı kontrolü', 'Fiyat', 'Ağırlık'], 'c': 2, 'e': 'Balığın asgari avlanma boyunda olup olmadığını ölçer.'}, {'q': " 'Mülkiyetin Kamuya Geçirilmesi' ne demektir? (Su Ürünleri Mevzuatı)", 'o': ['İade', 'Aracın devlet malı olması', 'Bağış', 'Yakılma', 'Sergileme'], 'c': 1, 'e': 'Şahıs mülkiyetinden alınıp hazineye geçmesidir.'}, {'q': "Nakil Belgesi'nin geçerlilik süresi ne kadardır? (Su Ürünleri Mevzuatı)", 'o': ['1 yıl', 'Varış noktasına kadar (tek seferlik)', 'Süresiz', '1 ay', '1 saat'], 'c': 1, 'e': 'Ürün boşaltıldığında belgenin hükmü biter.'}, {'q': 'Denizlerde gırgır ağları için genel derinlik sınırı? (Su Ürünleri Mevzuatı)', 'o': ['5m', '24m', '100m', 'Sınır yok', '1m'], 'c': 1, 'e': 'Kıyı ekosistemini korumak için 24 metre sınırı vardır.'}, {'q': "Su ürünleri suçunda 'Tekerrür' durumunda ne yapılır? (Su Ürünleri Mevzuatı)", 'o': ['Aynı ceza', 'Ceza bir kat artırılır', 'Yarıya iner', 'İptal', 'Uyarı'], 'c': 1, 'e': 'Aynı suç tekrarlandığında caydırıcılık için ceza katlanır.'}, {'q': 'Kira sözleşmesi biten balıkçının avlanması ne sayılır? (Su Ürünleri Mevzuatı)', 'o': ['Serbest', 'Ruhsatsız/İzinsiz avcılık', 'Deneme', 'Geleneksel', 'Sportif'], 'c': 1, 'e': 'Sözleşme bittiği an avlanma hakkı da biter.'}, {'q': 'Yabancı amatör balıkçıların durumu nedir? (Su Ürünleri Mevzuatı)', 'o': ['Serbest', 'Misafir Amatör Belgesi almaları şarttır', 'Yasak', 'TC vatandaşıyla aynı', 'Sadece kışın'], 'c': 1, 'e': "Yabancılar Türkiye'de ancak özel belgeyle amatör avcılık yapabilir."}, {'q': 'Ölü balık imhası hangi mevzuatla ilgilidir? (Su Ürünleri Mevzuatı)', 'o': ['Hayvan Sağlığı Zabıtası ve 1380 Sayılı Kanun', 'Trafik', 'Borçlar', 'Tapu', 'İş'], 'c': 0, 'e': 'Halk sağlığı ve çevre koruma önceliklidir.'}, {'q': 'Zararlı madde listesini belirleme yetkisi kime aittir? (Su Ürünleri Mevzuatı)', 'o': ['Kooperatif', 'Bakanlık', 'Muhtar', 'Kaptan', 'İstasyon'], 'c': 1, 'e': 'Su kirliliği standartlarını Bakanlık belirler.'}, {'q': 'Su ürünlerinin bozulmasında rol oynayan en temel biyolojik faktör nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Balığın yüzgeç yapısı', 'Mikroorganizmalar (Bakteriler)', 'Suyun derinliği', 'Göz rengi', 'Tekne boyası'], 'c': 1, 'e': 'Balığın doğal florasındaki bakteriler ölümden sonra dokuları parçalamaya başlar.'}, {'q': 'Taze balığın gözü duyusal kontrolde nasıl olmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['İçe çökmüş', 'Bulanık', 'Dışa bombeli, parlak ve şeffaf', 'Beyazlaşmış', 'Kapalı'], 'c': 2, 'e': 'Tazelik azaldıkça göz merceği bulanıklaşır ve göz çukura çöker.'}, {'q': 'Ölümden hemen sonra kasların sertleşmesi olayına ne denir? (Hijyen ve Kalite Kontrolü)', 'o': ['Hidroliz', 'Oksidasyon', 'Rigor Mortis', 'Fermentasyon', 'Emülsiyon'], 'c': 2, 'e': 'Ölüm sertliği (Rigor Mortis) ne kadar uzun sürerse raf ömrü o kadar uzar.'}, {'q': 'Balıkçılıkta kullanılan buzun en önemli özelliği ne olmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Çok soğuk olması', 'İçilebilir kalitede temiz sudan yapılmış olması', 'Deniz suyundan olması', 'Büyük kalıp olması', 'Renkli olması'], 'c': 1, 'e': 'Buz balıkla temas eder; kirli buz kontaminasyona neden olur.'}, {'q': 'Kokuşma başladığında oluşan keskin kötü kokulu bileşik hangisidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Glikojen', 'Laktik asit', 'TMA (Trimetilamin)', 'Vitamin C', 'Kalsiyum'], 'c': 2, 'e': "TMAO'nun bakterilerce TMA'ya dönüşmesi karakteristik bozuk balık kokusunu verir."}, {'q': 'HACCP sistemi neyi ifade eder? (Hijyen ve Kalite Kontrolü)', 'o': ['Boy ölçümü', 'Tehlike Analizi ve Kritik Kontrol Noktaları', 'Hız kontrolü', 'Maaş hesabı', 'Ağ direnci'], 'c': 1, 'e': 'Üretimin her aşamasında gıda güvenliği risklerini yöneten sistemdir.'}, {'q': 'Histamin oluşumu en çok hangi balıklarda görülür? (Hijyen ve Kalite Kontrolü)', 'o': ['Sazan', 'Alabalık', 'Kırmızı etli balıklar (Ton, Uskumru vb.)', 'Midye', 'Deniz patlıcanı'], 'c': 2, 'e': 'Uygunsuz sıcaklıkta saklanan kırmızı etli balıklarda histidin, histamine dönüşerek zehirler.'}, {'q': 'Şoklama (Dondurma) işlemi genellikle hangi sıcaklıkta yapılır? (Hijyen ve Kalite Kontrolü)', 'o': ['0 °C', '+4 °C', '-18 °C veya altı', '+10 °C', '-2 °C'], 'c': 2, 'e': 'Hızlı dondurma mikroorganizma faaliyetini tamamen durdurmak içindir.'}, {'q': 'Soğuk zincirin temel amacı nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Tadı değiştirmek', 'Bakteriyel gelişimi yavaşlatmak', 'Ağırlık artırmak', 'Fatura düşürmek', 'Hızlı nakliye'], 'c': 1, 'e': 'Sıcaklık artışı bakterilerin geometrik çoğalmasına neden olur.'}, {'q': 'Taze balığın solungaçları nasıl görünmelidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Soluk pembe', 'Kahverengi', 'Canlı kırmızı ve parlak', 'Siyah', 'Beyaz lekeli'], 'c': 2, 'e': 'Kan damarlarının tazeliği solungaç renginden anlaşılır.'}, {'q': "Laboratuvarda ölçülen 'TVB-N' değeri neyi ifade eder? (Hijyen ve Kalite Kontrolü)", 'o': ['Protein miktarı', 'Vitamin oranı', 'Kokuşma bileşenlerinin miktarı', 'Tuzluluk', 'Derinlik'], 'c': 2, 'e': 'Toplam Uçucu Bazik Azot değeri yükseldikçe tazelik azalır.'}, {'q': 'Taze balıkta pulların durumu nasıl olmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Kolay dökülmeli', 'Deriye sıkıca yapışık', 'Sarı tabakalı', 'Gri renkte', 'Çukur kalmalı'], 'c': 1, 'e': 'Bayatladıkça koruyucu mukoza zayıflar ve pullar dökülür.'}, {'q': 'Çapraz Kontaminasyon ne demektir? (Hijyen ve Kalite Kontrolü)', 'o': ['Çapraz dizme', 'Zararlıların temiz ürüne kirliden bulaşması', 'Fiyat etkisi', 'Havuz bağlantısı', 'Tür karışımı'], 'c': 1, 'e': 'Hijyenin en temel ihlalidir (örn: kirli bıçak kullanımı).'}, {'q': 'Dondurma Yanığı (Freezer Burn) neden kaynaklanır? (Hijyen ve Kalite Kontrolü)', 'o': ['Ateş', 'Hatalı paketleme sonucu suyun süblimleşmesi', 'Sıcak buz', 'Yağlılık', 'Hızlı şoklama'], 'c': 1, 'e': 'Ürün hava alırsa nem kaybeder ve doku süngerleşir.'}, {'q': 'Konservelerde anaerob ortamda üreyen en tehlikeli bakteri? (Hijyen ve Kalite Kontrolü)', 'o': ['Salmonella', 'E. coli', 'Clostridium botulinum', 'Staph. aureus', 'Lactobacillus'], 'c': 2, 'e': 'Oksijensiz ortamda ölümcül toksin üreten bakteridir.'}, {'q': 'Glaze (Buzlama) işlemi ne amaçla yapılır? (Hijyen ve Kalite Kontrolü)', 'o': ['Hile', 'Oksidasyon ve kurumayı önlemek', 'Parlaklık', 'Kılçık yumuşatma', 'Pişirme kolaylığı'], 'c': 1, 'e': 'Dondurulmuş ürün etrafında koruyucu buz tabakası oluşturur.'}, {'q': 'Kasa temizliğinde en önemli kural nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Suyla yıkama', 'Gıdaya uygun dezenfektan kullanımı', 'Ayda bir temizlik', 'Deniz suyu', 'Kumla ovma'], 'c': 1, 'e': 'Balık kalıntısı bakteri besi yeridir; her seferinde dezenfekte edilmelidir.'}, {'q': 'MAP (Modifiye Atmosfer Paketleme) neyi amaçlar? (Hijyen ve Kalite Kontrolü)', 'o': ['Gazlı içecek', 'Hava bileşimini değiştirerek üremeyi yavaşlatmak', 'Ağır paket', 'Hızlı pişme', 'Su boşaltma'], 'c': 1, 'e': 'Oksijen azaltılıp CO2 artırılarak raf ömrü uzatılır.'}, {'q': 'Vibrio bakterileri genelde nerede görülür? (Hijyen ve Kalite Kontrolü)', 'o': ['Toprak', 'Kirli deniz ve kabuklu deniz ürünleri', 'Kümes', 'Meyve', 'Süt'], 'c': 1, 'e': 'Deniz kökenli bir bakteridir, gıda enfeksiyonuna yol açar.'}, {'q': 'Personel hijyeni kapsamında hangisi yanlıştır? (Hijyen ve Kalite Kontrolü)', 'o': ['Bone şart', 'Takı yasak', 'Sağlık taraması şart', 'Çalışırken yemek serbest', 'El yıkama şart'], 'c': 3, 'e': 'Üretim alanında bir şey yiyip içmek kesinlikle yasaktır.'}, {'q': 'İç organların çıkarılması tazeliği nasıl etkiler? (Hijyen ve Kalite Kontrolü)', 'o': ['Bozar', 'Bağırsak bakterilerinden arındırarak ömrü uzatır', 'Tadı bozar', 'Etkisi yok', 'Su çektirir'], 'c': 1, 'e': 'İç organlar bakteri deposudur, hızlıca alınmalıdır.'}, {'q': 'Otoliz (Kendi kendini sindirme) nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Sudan çıkma', 'Enzimlerin dokuları parçalaması', 'Güneş yanığı', 'Yamyamlık', 'Pul dökme'], 'c': 1, 'e': 'Bakteriyel bozulmadan önce başlayan enzimatik süreçtir.'}, {'q': 'Midye tazeliği nasıl anlaşılır? (Hijyen ve Kalite Kontrolü)', 'o': ['Renk', 'Kabukların açık olması ve dokununca kapanmaması', 'Ağırlık', 'Suya atma', 'Parlaklık'], 'c': 1, 'e': 'Canlı kabukluların dokunmaya tepki vermesi gerekir.'}, {'q': 'Parmakla basıldığında çukurun durumu neyi gösterir? (Hijyen ve Kalite Kontrolü)', 'o': ['Çukur kalıyorsa taze', 'Hemen eski haline geliyorsa taze', 'Renk değişimi', 'Cins tayini', 'Çukur oluşmaz'], 'c': 1, 'e': 'Taze balık eti elastiktir; bayatladıkça doku gevşer.'}, {'q': 'Yağ oksidasyonu (acılaşma) en çok hangi grupta risklidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Yağsız balıklar', 'Yağlı balıklar (Somon, Uskumru)', 'Tatlı su', 'Kabuklu', 'Kuru balık'], 'c': 1, 'e': 'Doymamış yağ asitleri hava ile temas ederse acılaşır.'}, {'q': 'Elde yara/kesik olan personel ne yapmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Yara bandı', 'Gıdayla teması kesilmeli', 'Balık yağı', 'Eldiven', 'Tuzlu su'], 'c': 1, 'e': 'Staph. bakterileri balığa bulaşarak zehirleme yapabilir.'}, {'q': 'En sağlıklı çözündürme yöntemi hangisidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Sıcak su', 'Oda ısısı', 'Buzdolabı koşulları (+4 °C)', 'Kalorifer', 'Güneş'], 'c': 2, 'e': 'Hızlı çözündürme bakteri üremesini tetikler.'}, {'q': 'Çiğ balıkta parazit riskine karşı ne yapılmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Yıkama', 'Limon', "-20 °C'de dondurma", 'Tuzlu su', 'Sirke'], 'c': 2, 'e': 'Parazitler (Anisakis vb.) ancak dondurma ile ölür.'}, {'q': 'Temizlik kimyasalları nerede tutulmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Balık yanı', 'Mutfak altı', 'Ayrı, kilitli dolapta', 'Kasa içi', 'Buzdolabı'], 'c': 2, 'e': 'Kimyasal kontaminasyonu önlemek için izole edilmelidir.'}, {'q': "Konservede 'Bombe' neyin göstergesidir? (Hijyen ve Kalite Kontrolü)", 'o': ['Çok balık', 'Gaz üreten mikroorganizma faaliyeti', 'Tazelik', 'Kalite', 'Vakum'], 'c': 1, 'e': 'Bombe yapmış konserve ölümcül risk taşır, asla açılmamalıdır.'}, {'q': 'Olta iğnesi veya cam kırığı hangi tehlike sınıfıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Biyolojik', 'Kimyasal', 'Fiziksel', 'Doğal', 'Besinsel'], 'c': 2, 'e': 'Tüketiciyi yaralayabilecek yabancı maddeler fiziksel tehlikedir.'}, {'q': 'Nakliye aracı sıcaklık takibi nasıl yapılır? (Hijyen ve Kalite Kontrolü)', 'o': ['Tahmin', 'Data Logger (Kayıt cihazı)', 'Camdan bakma', 'Yol süresi', 'Sertlik'], 'c': 1, 'e': 'Sıcaklık-zaman grafiği yasal kanıttır.'}, {'q': 'Kurutma yöntemi nasıl koruma sağlar? (Hijyen ve Kalite Kontrolü)', 'o': ['Isıtarak', 'Su aktivitesini düşürerek', 'Tat değiştirerek', 'Pul sertleştirerek', 'Işık azaltarak'], 'c': 1, 'e': 'Nem çekildiğinde bakteriler üreyemez.'}, {'q': 'Taze balık kokusu nasıldır? (Hijyen ve Kalite Kontrolü)', 'o': ['Yağ', 'Amonyak', 'Yosun ve deniz', 'Çürük yumurta', 'Kokusuz'], 'c': 2, 'e': 'Balık kokusu bayatlamayla başlar, tazesi yosun kokar.'}, {'q': 'Hijyen bariyeri ne işe yarar? (Hijyen ve Kalite Kontrolü)', 'o': ['Ayak dinlendirme', 'Girişte dezenfeksiyon', 'Su önleme', 'Balık yıkama', 'Dekor'], 'c': 1, 'e': 'Dış kirliliğin üretime taşınmasını engeller.'}, {'q': 'Ölüm sonrası pH değişimi nasıldır? (Hijyen ve Kalite Kontrolü)', 'o': ['Sabit', 'Önce düşer, sonra yükselir', 'Sürekli düşer', 'Önce yükselir', 'Değişmez'], 'c': 1, 'e': "Laktik asit pH'ı düşürür, kokuşma ile pH tekrar yükselir."}, {'q': 'RSW sistemi nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Sıcak su', 'Soğutulmuş deniz suyu sirkülasyonu', 'Pişirme', 'Tuz çıkarma', 'Tatlı su'], 'c': 1, 'e': 'Büyük gemilerde hızlı ve homojen soğutma sağlar.'}, {'q': 'Fümelemede dumanın işlevi? (Hijyen ve Kalite Kontrolü)', 'o': ['Sadece renk', 'Aroma ve koruyuculuk (fenoller)', 'Kılçık eritme', 'Ağırlık', 'Pul yapıştırma'], 'c': 1, 'e': 'Dumanın içindeki maddeler mikrop öldürücüdür.'}, {'q': 'Melanozis (Kararma) en çok hangisinde görülür? (Hijyen ve Kalite Kontrolü)', 'o': ['Alabalık', 'Karides', 'Palamut', 'Hamsi', 'Sazan'], 'c': 1, 'e': 'Karideste enzimatik bir kararma olayıdır.'}, {'q': 'En temel kayıt sistemi hangisidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Maaş', 'İzlenebilirlik', 'Fatura', 'Gemi hızı', 'Hava durumu'], 'c': 1, 'e': 'Ürünün kaynağına ulaşabilmek için şarttır.'}, {'q': 'İşleme tesisi zemini nasıl olmalıdır? (Hijyen ve Kalite Kontrolü)', 'o': ['Halı', 'Eğimli ve kolay temizlenir', 'Toprak', 'Parke', 'Mermer'], 'c': 1, 'e': 'Su birikmesini ve bakteri barınmasını önlemelidir.'}, {'q': 'Sıcaklık -18 °C üzerine çıkarsa ne olur? (Hijyen ve Kalite Kontrolü)', 'o': ['Vitamin artar', 'Parçalanma', 'Mikroorganizma ve enzimler aktifleşir', 'Canlanma', 'Parlama'], 'c': 2, 'e': 'Soğuk zincir kırılırsa bozulma süreci yeniden başlar.'}, {'q': 'Miyoglobin miktarının yüksek olması neye yol açar? (Hijyen ve Kalite Kontrolü)', 'o': ['Beyaz et', 'Kırmızı renk ve hızlı bozulma', 'Yavaş yüzme', 'Su çekme', 'Kılçıksızlık'], 'c': 1, 'e': 'Koyu etli balıklar daha hızlı okside olur.'}, {'q': 'Konservede vakumun amacı? (Hijyen ve Kalite Kontrolü)', 'o': ['Hafifletme', 'Oksijeni uzaklaştırıp aerobik üremeyi durdurmak', 'Yapıştırma', 'Şekerleme', 'Renk'], 'c': 1, 'e': 'Havasız ortam bozulmayı geciktirir.'}, {'q': 'Listeria bakterisi neden risklidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Sıcak sever', "+4 °C'de üreyebildiği için", 'Renk değişimi', 'Ölü balık', 'Gözle görülür'], 'c': 1, 'e': 'Soğukta dahi çoğalabilen tehlikeli bir patojendir.'}, {'q': 'Strafor kasaların avantajı nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Ucuzluk', 'Isı yalıtımı', 'Vitamin', 'Sınırsız kullanım', 'Hızlı yok olma'], 'c': 1, 'e': 'Sıcaklık geçişini engelleyerek buzu korur.'}, {'q': 'Kritik Donma Bölgesi hangi aralıktır? (Hijyen ve Kalite Kontrolü)', 'o': ['+10 / +20', '-1 / -5', '-20 / -30', '0 / +4', '-50 altı'], 'c': 1, 'e': 'Buz kristallerinin oluştuğu en kritik sıcaklık aralığıdır.'}, {'q': 'ATP yıkımı sonunda biriken madde? (Hijyen ve Kalite Kontrolü)', 'o': ['Protein', 'Hipoksantin', 'Kalsiyum', 'Nişasta', 'Magnezyum'], 'c': 1, 'e': 'Hipoksantin artışı bayatlığın laboratuvar göstergesidir.'}, {'q': 'Bayat balıkta göz bebeği ne olur? (Hijyen ve Kalite Kontrolü)', 'o': ['Parlak', 'Opak (bulutlu)', 'Renkli', 'Dışa fırlar', 'Değişmez'], 'c': 1, 'e': 'Protein denatürasyonu sonucu mercek matlaşır.'}, {'q': 'Kuru tuzlama ile salamura farkı nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Marka', 'Kuru tuzda direkt uygulama, salamurada çözelti kullanımı', 'Mevsim', 'Cins', 'Renk'], 'c': 1, 'e': 'Tuzun uygulanma şekli ve su çekme yöntemi farklıdır.'}, {'q': 'KKN (Kritik Kontrol Noktası) hangi sistemdedir? (Hijyen ve Kalite Kontrolü)', 'o': ['ISO 9001', 'HACCP', 'Muhasebe', 'İK', 'Gemi takip'], 'c': 1, 'e': 'Tehlikenin önlendiği kritik üretim adımıdır.'}, {'q': 'Acılaşmayı (Ransidite) ne hızlandırır? (Hijyen ve Kalite Kontrolü)', 'o': ['Karanlık', 'Işık ve yüksek sıcaklık', 'Vakum', 'Buz', 'Yosun'], 'c': 1, 'e': 'Işık ve ısı yağ oksidasyonunu tetikler.'}, {'q': 'Pişirmede iç sıcaklık kontrolü neden önemlidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Renk', 'Patojenlerin ölmesi için', 'Ağırlık', 'Kılçık', 'Vitamin'], 'c': 1, 'e': '70-75 °C bakterilerin ölümü için gereklidir.'}, {'q': 'Amonyak kokusu neyin belirtisidir? (Hijyen ve Kalite Kontrolü)', 'o': ['Tazelik', 'İleri derece kokuşma', 'Temiz su', 'Çok tuz', 'Cins'], 'c': 1, 'e': 'Proteinlerin parçalanarak gaz çıkardığını gösterir.'}, {'q': 'Pul buzun avantajı nedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Pahalı', 'Yüzeyi sarar ve zedelemez', 'Geç erir', 'Görsellik', 'Parlatma'], 'c': 1, 'e': 'Sivri ucu yoktur, hızlı soğutur ve eti korur.'}, {'q': 'Ağır metal denetiminde en riskli olan? (Hijyen ve Kalite Kontrolü)', 'o': ['Kalsiyum', 'Cıva (Metil-cıva)', 'Demir', 'Magnezyum', 'Potasyum'], 'c': 1, 'e': 'Besin zinciriyle biriken ve sinir sistemine zararlı olan metaldir.'}, {'q': 'Lakerda hangi yönteme örnektir? (Hijyen ve Kalite Kontrolü)', 'o': ['Kurutma', 'Dondurma', 'Tuzlama (Olgunlaştırma)', 'Tütsüleme', 'Işınlama'], 'c': 2, 'e': 'Yoğun tuzda olgunlaştırılmış geleneksel üründür.'}, {'q': 'Paslanmaz çelik neden tercih edilir? (Hijyen ve Kalite Kontrolü)', 'o': ['Hafiflik', 'Korozyon direnci ve hijyen', 'Ucuzluk', 'Tat verme', 'Gümüş renk'], 'c': 1, 'e': 'Gözeneksiz olduğu için bakteri barındırmaz.'}, {'q': 'Karın patlaması (Belly burn) neden olur? (Hijyen ve Kalite Kontrolü)', 'o': ['Çok yem', 'Enzimlerin içeriden sindirmesi', 'Derin su', 'Kavga', 'Sıcak su'], 'c': 1, 'e': 'İç organı alınmayan balıkta otoliz hızlı olur.'}, {'q': 'Nihai karar yetkisi kimdedir? (Hijyen ve Kalite Kontrolü)', 'o': ['Esnaf', 'Tüketici', 'Resmi kontrol görevlisi', 'Müdür', 'Şoför'], 'c': 2, 'e': 'İmha veya satış kararı sadece Bakanlık yetkilisinindir.'}, {'q': 'Azot ve fosfor artışı sonucu oksijenin tükenmesi olayına ne denir? (Su Kirliliği ve Kontrolü)', 'o': ['Oksidasyon', 'Ötrofikasyon', 'Fotosentez', 'Rejenerasyon', 'Sedimentasyon'], 'c': 1, 'e': 'Aşırı besin girişi alg patlamasına ve oksijen tükenmesine yol açar.'}, {'q': 'Ağır metallerin besin zincirinde birikerek artmasına ne ad verilir? (Su Kirliliği ve Kontrolü)', 'o': ['Biyolojik parçalanma', 'Biyobirikim (Biyoakümülasyon)', 'Filtrasyon', 'Distilasyon', 'Difüzyon'], 'c': 1, 'e': 'Metaller atılamaz ve üst basamaklardaki canlılarda yoğunlaşır.'}, {'q': 'Termal kirlilik hangi sınıfa girer? (Su Kirliliği ve Kontrolü)', 'o': ['Kimyasal', 'Fiziksel', 'Biyolojik', 'Radyoaktif', 'Besinsel'], 'c': 1, 'e': 'Sıcaklık değişimi suyun fiziksel bir parametresidir.'}, {'q': 'Ağır metaller balıkta öncelikle nereyi tahrip eder? (Su Kirliliği ve Kontrolü)', 'o': ['Vitaminler', 'Solungaç epiteli', 'Saf su', 'Kalsiyum', 'Protein'], 'c': 1, 'e': 'Solungaçlar dış ortamla en geniş temas yüzeyine sahip hassas organlardır.'}, {'q': 'BOİ (Biyokimyasal Oksijen İhtiyacı) neyi ölçer? (Su Kirliliği ve Kontrolü)', 'o': ['pH değeri', 'Organik maddeleri parçalamak için gereken oksijeni', 'İletkenlik', 'Tuzluluk', 'Radyoaktivite'], 'c': 1, 'e': 'BOİ yüksekse su organik atıklarca kirli demektir.'}, {'q': 'Petrol kirliliğinin en doğrudan mekanik etkisi nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Renk değişimi', 'Solungaçları kaplayıp solunumu kesmesi', 'Hızlı büyüme', 'Tuzluluk artışı', 'Görme artışı'], 'c': 1, 'e': 'Petrol filmi hem oksijen geçişini hem de solunumu fiziksel olarak engeller.'}, {'q': 'Ani pH değişimlerine ne sebep olur? (Su Kirliliği ve Kontrolü)', 'o': ['Plastik', 'Asit yağmurları ve endüstriyel atıklar', 'Mutfak atığı', 'Deniz trafiği', 'Yosun'], 'c': 1, 'e': 'Endüstriyel sızıntılar suyun asit-baz dengesini aniden bozar.'}, {'q': "5 mm'den küçük plastik parçalarına ne denir? (Su Kirliliği ve Kontrolü)", 'o': ['Makroplastik', 'Mikroplastik', 'Biyoplastik', 'Nanoplastik', 'Polimer'], 'c': 1, 'e': 'Bu parçalar balıklarca yem sanılarak yutulur.'}, {'q': 'Zirai ilaçların genel adı nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Gübre', 'Pestisit', 'Kireç', 'Ozon', 'Florür'], 'c': 1, 'e': 'Pestisitler balıklarda sinir sistemi felcine yol açabilir.'}, {'q': 'Kirlilik göstergesi canlılara ne ad verilir? (Su Kirliliği ve Kontrolü)', 'o': ['Biyoindikatör', 'Predatör', 'Parazit', 'Simbiyont', 'Vektör'], 'c': 0, 'e': 'Hassas türlerin varlığı veya yokluğu su kalitesini gösterir.'}, {'q': 'Deterjanlardaki ötrofikasyon sebebi madde? (Su Kirliliği ve Kontrolü)', 'o': ['Sodyum', 'Fosfat', 'Klor', 'İyot', 'Magnezyum'], 'c': 1, 'e': 'Fosfat algler için en önemli kısıtlayıcı besindir; artışı kirlilik yaratır.'}, {'q': 'Teratojenik etki ne demektir? (Su Kirliliği ve Kontrolü)', 'o': ['Hızlı yüzme', 'Yapısal bozukluklar ve anomaliler', 'Pul dökülmesi', 'İştah artışı', 'Ömür uzaması'], 'c': 1, 'e': 'Kirlilik embriyo gelişiminde sakatlıklara yol açar.'}, {'q': 'Bulanıklığın balığa zararı nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Görmeyi zorlaştırır', 'Solungaçları tıkar', 'Yumurtaların üzerini örter', 'Hepsi', 'Hiçbiri'], 'c': 3, 'e': 'Sedimentasyon sucul yaşamı her yönden kısıtlar.'}, {'q': 'Minamata hastalığına hangi metal sebep olur? (Su Kirliliği ve Kontrolü)', 'o': ['Demir', 'Cıva', 'Alüminyum', 'Bakır', 'Çinko'], 'c': 1, 'e': 'Cıva sinir sistemini tahrip eden en tehlikeli ağır metaldir.'}, {'q': 'Akut zehirlenme ne demektir? (Su Kirliliği ve Kontrolü)', 'o': ['Yıllık etki', 'Kısa sürede yüksek dozla ölüm', 'Renk değişimi', 'Yağlanma', 'Zararsızlık'], 'c': 1, 'e': 'Aniden ortaya çıkan ölümcül tablodur.'}, {'q': 'Kanalizasyon atığı suda hangi riski artırır? (Su Kirliliği ve Kontrolü)', 'o': ['Patojen bakteri (Koliform)', 'Boy uzaması', 'Kemik sertleşmesi', 'Berraklık', 'Az yemleme'], 'c': 0, 'e': 'Kanalizasyon mikrobiyolojik kirliliğin ana kaynağıdır.'}, {'q': 'Gürültü kirliliği balığı nasıl etkiler? (Su Kirliliği ve Kontrolü)', 'o': ['Etkilemez', 'İletişim ve yön bulmayı bozar', 'Duyma artışı', 'Neşe', 'Sadece balina'], 'c': 1, 'e': 'Su altında ses çok etkili bir stres faktörüdür.'}, {'q': 'Sinerjik etki nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Yok etme', 'İki kirleticinin etkisinin toplamdan fazla olması', 'Temizleme', 'Alışma', 'Buharlaşma'], 'c': 1, 'e': 'Farklı maddeler birleşince daha zehirli hale gelebilir.'}, {'q': 'Balık çiftliği kaynaklı kirlilik? (Su Kirliliği ve Kontrolü)', 'o': ['Endüstriyel', 'Organik yük artışı', 'Radyoaktif', 'Plastik', 'Termal'], 'c': 1, 'e': 'Dışkı ve yem artıkları organik kirlilik yaratır.'}, {'q': 'Suyun kendi kendini temizlemesine ne denir? (Su Kirliliği ve Kontrolü)', 'o': ['Kontaminasyon', 'Özümleme (Asimilasyon)', 'Korozyon', 'Erozyon', 'İzolasyon'], 'c': 1, 'e': 'Doğanın belirli bir yükü bertaraf etme kapasitesidir.'}, {'q': 'Kadmiyum hangi organı bozar? (Su Kirliliği ve Kontrolü)', 'o': ['Yüzgeç', 'Böbrek ve iskelet', 'Göz', 'Mide', 'Beyin'], 'c': 1, 'e': 'Kadmiyum kemik yapısını zayıflatıp kırılmalara yol açar.'}, {'q': 'LC50 değeri neyi ifade eder? (Su Kirliliği ve Kontrolü)', 'o': ['%50 büyüme', "Canlıların %50'sini öldüren doz", '%50 temizlik', '%50 yumurta', '%50 göç'], 'c': 1, 'e': 'Ölümcül konsantrasyon (Lethal Concentration) ölçüsüdür.'}, {'q': 'Petrolün oksijen transferini engellemesi? (Su Kirliliği ve Kontrolü)', 'o': ['Görmeyi engeller', 'Atmosferden oksijen geçişini keser', 'Gemi geçişi', 'Yağmur', 'Zıplama'], 'c': 1, 'e': 'Yüzeydeki film tabakası gaz değişimini durdurur.'}, {'q': 'Biyomonitör tür özelliği? (Su Kirliliği ve Kontrolü)', 'o': ['Nadirlik', 'Hız', 'Yerleşik olup kirletici biriktirme', 'Büyüklük', 'Derinlik'], 'c': 2, 'e': 'Bölgeyi temsil edebilmesi için hareketli olmamalıdır.'}, {'q': 'Termal kirlilik ana kaynağı? (Su Kirliliği ve Kontrolü)', 'o': ['Tekstil', 'Termik/Nükleer santraller', 'Mandıra', 'Barınak', 'Tarım'], 'c': 1, 'e': 'Soğutma suları suyu aşırı ısıtır.'}, {'q': 'Metalik kirlilik balığı nasıl etkiler? (Su Kirliliği ve Kontrolü)', 'o': ['Organik', 'Enzim sistemlerini kilitleyerek', 'Radyoaktif', 'Plastik', 'Bakteriyel'], 'c': 1, 'e': 'Ağır metaller hayati enzimleri bloke eder.'}, {'q': 'Mavi Bayrak kriteri? (Su Kirliliği ve Kontrolü)', 'o': ['Derinlik', 'Tür sayısı', 'Mikrobiyolojik (E.coli)', 'Dalga', 'Kum rengi'], 'c': 2, 'e': 'Yüzme suyunun hijyenik kalitesini belgeler.'}, {'q': 'Endokrin bozucu maddelerin etkisi? (Su Kirliliği ve Kontrolü)', 'o': ['Parlama', 'Üreme ve cinsiyet bozuklukları', 'Koku alma', 'Hız', 'Su içme'], 'c': 1, 'e': 'Hormonal sistemi taklit ederek nesli tehlikeye atarlar.'}, {'q': 'Madencilik atığı zararı? (Su Kirliliği ve Kontrolü)', 'o': ['Tatlı su', 'Asitlik ve ağır metal salınımı', 'Saklanma', 'Isıtma', 'Besleme'], 'c': 1, 'e': 'Maden sızıntıları ekosistemi aniden asitlendirir.'}, {'q': 'Solungaçtaki aşırı mukusun sebebi? (Su Kirliliği ve Kontrolü)', 'o': ['Azalma', 'Tahrişe karşı savunma mekanizması', 'Uçma', 'Üreme', 'Altın'], 'c': 1, 'e': 'Balık korunmaya çalışırken mukus nedeniyle boğulur.'}, {'q': 'İstilacı tür taşıyan gemi suyu? (Su Kirliliği ve Kontrolü)', 'o': ['İçme', 'Sintine', 'Balast', 'Gri', 'Saf'], 'c': 2, 'e': 'Gemilerin denge için aldığı su tür taşınımına yol açar.'}, {'q': 'Sintine suyu nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Mutfak', 'Makine dairesi atık suyu', 'Boya', 'Personel', 'Yosun'], 'c': 1, 'e': 'Yağ ve yakıt içeren kirli sudur.'}, {'q': 'Kurşun (Pb) nerede birikir? (Su Kirliliği ve Kontrolü)', 'o': ['Göz', 'Kas ve kemik', 'Yüzgeç', 'Mide', 'Pul'], 'c': 1, 'e': 'Kurşun kemik yapısına yerleşir.'}, {'q': 'Deterjan köpüğünün zararı? (Su Kirliliği ve Kontrolü)', 'o': ['Temizlik', 'Gaz alışverişini engellemesi', 'Oyun', 'Tat', 'Yok'], 'c': 1, 'e': 'Yüzey gerilimini bozar ve oksijeni keser.'}, {'q': 'Biyobirikim katsayısı? (Su Kirliliği ve Kontrolü)', 'o': ['Hız', 'Su/Doku kirletici oranı', 'Derinlik', 'Yumurta', 'Yaş'], 'c': 1, 'e': 'Maddenin vücutta ne kadar yoğunlaştığını gösterir.'}, {'q': 'Anoksi nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Tuzluluk', 'Oksijenin tamamen tükenmesi', 'Sıcaklık', 'Büyüme', 'Donma'], 'c': 1, 'e': 'Oksijensiz yaşam ortamıdır.'}, {'q': 'Genotoksik etki? (Su Kirliliği ve Kontrolü)', 'o': ['Kum', 'DNA hasarı', 'Saf su', 'Rüzgar', 'Ses'], 'c': 1, 'e': 'Genetik yapıda kalıcı hasar oluşmasıdır.'}, {'q': 'Mavi-yeşil alglerin tehlikesi? (Su Kirliliği ve Kontrolü)', 'o': ['Kovalama', 'Toksin (siyanotoksin) salgılaması', 'Soğutma', 'Görmeyi engelleme', 'Zararsız'], 'c': 1, 'e': 'Suya zehir bırakarak toplu ölüme yol açarlar.'}, {'q': 'Sinerjizmin tersi? (Su Kirliliği ve Kontrolü)', 'o': ['Aktivasyon', 'Antagonizma', 'Nötralizasyon', 'Eliminasyon', 'Reaksiyon'], 'c': 1, 'e': 'Bir maddenin diğerinin zehrini kırmasıdır.'}, {'q': 'Biyo-testlerde (Bioassay) sık kullanılan canlı? (Su Kirliliği ve Kontrolü)', 'o': ['Balina', 'Su piresi (Daphnia) ve Alabalık', 'Yılan', 'Köpekbalığı', 'Kurbağa'], 'c': 1, 'e': 'Hassasiyetleri nedeniyle standart test canlılarıdır.'}, {'q': 'Biyomanyifikasyon? (Su Kirliliği ve Kontrolü)', 'o': ['Mıknatıs', 'Zinkirde yukarı çıktıkça zehrin artması', 'Boy uzama', 'Renk', 'Sürü'], 'c': 1, 'e': 'Üst predatörlerde kirlilik yükü en fazladır.'}, {'q': 'BOİ düşükse su nasıldır? (Su Kirliliği ve Kontrolü)', 'o': ['Kirli', 'Temiz', 'Canlı yok', 'Sıcak', 'Tuzlu'], 'c': 1, 'e': 'Organik yükün az olduğunu gösterir.'}, {'q': 'Alüminyum hangi suda zehirlidir? (Su Kirliliği ve Kontrolü)', 'o': ['Tuzlu', 'Asidik (Düşük pH)', 'Derin', 'Bazik', 'Zararsız'], 'c': 1, 'e': 'Asitlik alüminyumu çözer ve toksik hale getirir.'}, {'q': 'Plastiğin tokluk hissi yaratması? (Su Kirliliği ve Kontrolü)', 'o': ['Vitamin', 'Gerçek gıdayı engeller ve açlıktan öldürür', 'Güç', 'Batma', 'Etki yok'], 'c': 1, 'e': 'Sindirim sistemi tıkanır ve balık zayıflar.'}, {'q': 'Amonyak (NH3) nereyi bozar? (Su Kirliliği ve Kontrolü)', 'o': ['Göz', 'Yüzgeç', 'Solungaç ve sinir sistemi', 'Pul', 'Kuyruk'], 'c': 2, 'e': 'Yüksek dozda sinir sistemini felç eder.'}, {'q': 'Radyoaktif madde kemikte birikir mi? (Su Kirliliği ve Kontrolü)', 'o': ['Yağ', 'Yüzgeç', 'Evet (Stronsiyum vb.)', 'Göz', 'Mukoza'], 'c': 2, 'e': 'Kemik yapısına kalsiyum gibi yerleşir.'}, {'q': 'Antibiyotik kirliliği sonucu? (Su Kirliliği ve Kontrolü)', 'o': ['Berraklık', 'Dirençli bakteri gelişimi', 'Konuşma', 'Isınma', 'Etkisiz'], 'c': 1, 'e': 'Ekosistemdeki mikroflorayı bozar.'}, {'q': 'Kronik zehirlenme belirtisi? (Su Kirliliği ve Kontrolü)', 'o': ['Hızlı ölüm', 'Büyüme ve üreme yavaşlaması', 'Parlama', 'Sıçrama', 'Temizleme'], 'c': 1, 'e': 'Uzun süreli ve sinsi hasardır.'}, {'q': 'KOİ ve BOİ farkı? (Su Kirliliği ve Kontrolü)', 'o': ['Balık ölçümü', 'KOİ tüm kimyasal yükü ölçer', 'BOİ büyük', 'Fark yok', 'Deniz ölçümü'], 'c': 1, 'e': 'KOİ daha kapsamlı bir oksijen ihtiyacı ölçüsüdür.'}, {'q': 'Dispergatörlerin dezavantajı? (Su Kirliliği ve Kontrolü)', 'o': ['Yok etme', 'Petrolü derinliğe yayarak toksisiteyi artırma', 'İçilebilir su', 'Kum kullanımı', 'Yem'], 'c': 1, 'e': 'Yüzeyi temizler ama su kolonunu kirletir.'}, {'q': 'Siyanür kirliliği kaynağı? (Su Kirliliği ve Kontrolü)', 'o': ['Balıkçılık', 'Altın madenciliği ve yasadışı av', 'Kağıt', 'Trafik', 'Rüzgar'], 'c': 1, 'e': 'Zehirle avlanma ve maden sızıntısı sebebidir.'}, {'q': 'Fekal koliform neyi işaret eder? (Su Kirliliği ve Kontrolü)', 'o': ['Oksijen', 'Kanalizasyon / Dışkı karışımı', 'Tuzluluk', 'Çok balık', 'Mineral'], 'c': 1, 'e': 'Sıcakkanlı canlı atığının göstergesidir.'}, {'q': 'Bakır (Cu) kirliliği etkisi? (Su Kirliliği ve Kontrolü)', 'o': ['Yeşil renk', 'Koku alma duyusunun kaybı', 'Ses çıkarma', 'Sert pul', 'Koruma'], 'c': 1, 'e': 'Sinir uçlarını tahrip ederek koku dünyasını yok eder.'}, {'q': 'Ötrofikasyonun son aşaması? (Su Kirliliği ve Kontrolü)', 'o': ['Turizm', "Gölün 'ölümü' (Anoksi)", 'Şifalı su', 'Dev balık', 'Altın'], 'c': 1, 'e': 'Gölün bataklığa dönüşüp oksijensiz kalmasıdır.'}, {'q': 'Küresel ısınma kirliliği nasıl etkiler? (Su Kirliliği ve Kontrolü)', 'o': ['Azaltır', 'Toksisiteyi artırır', 'Değiştirmez', 'Korur', 'Temizler'], 'c': 1, 'e': 'Isı, kimyasal zehirlenmeyi hızlandırır.'}, {'q': 'Toparlanma bölgesi nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Temiz', 'Kirli', 'Kendi kendini temizleme bölgesi', 'Yasak', 'Ölü'], 'c': 2, 'e': 'Suyun kirlilikten arınma fazıdır.'}, {'q': 'Çinko (Zn) kirliliği ne yapar? (Su Kirliliği ve Kontrolü)', 'o': ['Vitamin', 'Solungaç doku ölümü (nekroz)', 'Görme', 'Diş', 'Dökülme'], 'c': 1, 'e': 'Yüksek dozda solunumu durdurur.'}, {'q': 'Deşarj standartları nedir? (Su Kirliliği ve Kontrolü)', 'o': ['Gemi hızı', 'Maksimum atık limitleri', 'Fiyat', 'Ağ gözü', 'Personel'], 'c': 1, 'e': 'Yasal boşaltım sınırlarıdır.'}, {'q': 'PCB kirliliği neden tehlikeli? (Su Kirliliği ve Kontrolü)', 'o': ['Koku', 'Kalıcı organik kirletici ve kanserojen', 'Ağırlık', 'Kış etkisi', 'Tatlı su'], 'c': 1, 'e': 'Doğada yok olmaz ve yağda birikir.'}, {'q': 'Kirliliği önlemede en etkili yol? (Su Kirliliği ve Kontrolü)', 'o': ['Ölü balık toplama', 'Kaynağında kesme (Arıtma)', 'Temiz su ekleme', 'Taşıma', 'Yüzeyi boyama'], 'c': 1, 'e': 'En iyi koruma kirliliği hiç başlatmamaktır.'}, {'q': 'Balıklarda metabolizma hızını doğrudan kontrol eden en önemli fiziksel parametre? (Su Kalitesi)', 'o': ['Su rengi', 'Su sıcaklığı', 'Su hızı', 'Derinlik', 'Berraklık'], 'c': 1, 'e': 'Balıklar poikiloterm canlılardır, vücut ısıları su sıcaklığına bağlıdır.'}, {'q': 'Balıkların solunumu için hayati önem taşıyan gaz? (Su Kalitesi)', 'o': ['Azot', 'Karbondioksit', 'Çözünmüş Oksijen (DO)', 'Metan', 'Hidrojen sülfür'], 'c': 2, 'e': 'Oksijen 5 mg/L altına düştüğünde hayati risk başlar.'}, {'q': 'Balıklar için ideal pH aralığı nedir? (Su Kalitesi)', 'o': ['1.0 - 3.0', '4.0 - 5.5', '6.5 - 8.5', '9.0 - 11.0', '12.0 - 14.0'], 'c': 2, 'e': 'Aşırı asidik veya bazik sular solungaç dokusunu parçalar.'}, {'q': 'Sudaki kalsiyum ve magnezyum iyonlarının toplamı neyi ifade eder? (Su Kalitesi)', 'o': ['Tuzluluk', 'Toplam Sertlik', 'Alkalinite', 'pH', 'Bulanıklık'], 'c': 1, 'e': 'Sertlik, iskelet gelişimi ve yumurta kalitesi için kritiktir.'}, {'q': 'Alkalinite neyi ifade eder? (Su Kalitesi)', 'o': ['Tuzluluk', 'pH değişimlerine karşı tamponlama kapasitesi', 'Yosun miktarı', 'Sıcaklık', 'Akış hızı'], 'c': 1, 'e': 'Yüksek alkalinite pH dalgalanmalarını engelleyerek balığı korur.'}, {'q': 'Protein metabolizması sonucu oluşan en zehirli atık madde? (Su Kalitesi)', 'o': ['Nitrat', 'Glikoz', 'Amonyak (NH3)', 'Kalsiyum', 'Vitamin C'], 'c': 2, 'e': 'Özellikle serbest amonyak (NH3) formu çok zehirlidir.'}, {'q': 'Amonyak ve nitrat arasındaki zehirli ara madde? (Su Kalitesi)', 'o': ['Nitrit (NO2)', 'Azot gazı', 'Magnezyum', 'Karbonat', 'Klorür'], 'c': 0, 'e': 'Nitrit kanda oksijen taşınmasını engeller.'}, {'q': 'Işık geçirgenliğini azaltan duruma ne denir? (Su Kalitesi)', 'o': ['Tuzluluk', 'Bulanıklık (Turbidite)', 'Sertlik', 'pH', 'Özgül ağırlık'], 'c': 1, 'e': 'Askıda katı maddeler veya plankton bulanıklık yaratır.'}, {'q': 'Deniz suyunun tuzluluğunu ifade eden birim? (Su Kalitesi)', 'o': ['Sertlik', 'Tuzluluk (Salinite - ‰)', 'İletkenlik', 'Viskozite', 'Özdirenç'], 'c': 1, 'e': 'Genellikle binde bir (ppt) birimi kullanılır.'}, {'q': 'Tatlı su balığının sürekli su alması durumu? (Su Kalitesi)', 'o': ['Hipertonik', 'Hipotonik ortam', 'İzotonik', 'Nötr', 'Kuru'], 'c': 1, 'e': 'Tatlı su hipotoniktir, su balığın vücuduna ozmozla girmeye çalışır.'}, {'q': 'Elektriksel iletkenlik neyi ölçer? (Su Kalitesi)', 'o': ['Vitamin', 'Çözünmüş iyonlar', 'Plastik', 'Balık sayısı', 'Oksijen'], 'c': 1, 'e': 'Mineraller arttıkça suyun iletkenliği artar.'}, {'q': 'Gaz kabarcığı hastalığına ne sebep olur? (Su Kalitesi)', 'o': ['Mantar', 'Gaz (Oksijen/Azot) aşırı doygunluğu', 'Beyaz benek', 'Kılçık erimesi', 'İştahsızlık'], 'c': 1, 'e': "Basınçlı su girişleri gaz doygunluğunu %100'ün üzerine çıkarabilir."}, {'q': 'Nitrifiye bakterileri hangileridir? (Su Kalitesi)', 'o': ['Salmonella', 'Nitrosomonas ve Nitrobacter', 'Lactobacillus', 'Küf', 'Vibrio'], 'c': 1, 'e': 'Amonyağı önce nitrite, sonra nitrata çevirirler.'}, {'q': 'Havuzda oksijenin sabaha karşı en düşük olma sebebi? (Su Kalitesi)', 'o': ['Uyku', 'Fotosentezin durması ve solunumun devam etmesi', 'Soğuma', 'Rüzgar', 'Yemleme'], 'c': 1, 'e': 'Güneş yokken bitkiler sadece oksijen tüketir.'}, {'q': 'Secchi diski neyi ölçer? (Su Kalitesi)', 'o': ['Derinlik', 'Su berraklığı', 'Balık boyu', 'Hız', 'Amonyak'], 'c': 1, 'e': 'Diskin görünmediği mesafe ışık geçirgenliğini verir.'}, {'q': 'Yüksek CO2 etkisine ne denir? (Su Kalitesi)', 'o': ['Hızlı büyüme', 'Narkoz etkisi ve kan pH düşüşü', 'Neşe', 'Parlama', 'Tatlılaşma'], 'c': 1, 'e': 'Yüksek CO2 balığı uyuşturur ve boğar.'}, {'q': 'Fotoperiyot nedir? (Su Kalitesi)', 'o': ['Fotoğraf', 'Günlük ışık alma süresi', 'Isınma', 'Yüzme', 'Flaş'], 'c': 1, 'e': 'Üreme ve büyüme döngülerini ışık süresi yönetir.'}, {'q': 'Yumuşak/Sert su ayrımı hangi iyonlara dayanır? (Su Kalitesi)', 'o': ['Sodyum/Klor', 'Kalsiyum/Magnezyum', 'Potasyum/Fosfor', 'H/O', 'N/C'], 'c': 1, 'e': 'Ca ve Mg iyonları suyun sertliğini belirleyen ana minerallerdir.'}, {'q': "Deniz tuzunun %85'i nedir? (Su Kalitesi)", 'o': ['Kalsiyum', 'Sodyum Klorür (NaCl)', 'Magnezyum', 'Potasyum', 'Demir'], 'c': 1, 'e': 'Deniz suyunun ana bileşeni sodyum klorürdür.'}, {'q': 'Redoks Potansiyeli (ORP) neyi gösterir? (Su Kalitesi)', 'o': ['Renk', 'Oksidasyon (temizleme) kapasitesini', 'Derinlik', 'Hız', 'Yem'], 'c': 1, 'e': 'Yüksek ORP, suyun organik kirlilikten arındığını gösterir.'}, {'q': 'Osmoregülasyonu en çok ne zorlar? (Su Kalitesi)', 'o': ['Sıcaklık', 'Ani tuzluluk değişimi', 'Hız', 'Işık', 'Renk'], 'c': 1, 'e': 'Balık enerji harcayarak su-tuz dengesini kurmak zorundadır.'}, {'q': 'Sıcaklık artarsa çözünmüş oksijen ne olur? (Su Kalitesi)', 'o': ['Artar', 'Değişmez', 'Azalır', 'Önce artar', 'Sadece tuzluda artar'], 'c': 2, 'e': 'Gazların suda çözünürlüğü sıcaklıkla ters orantılıdır.'}, {'q': 'Nitrifikasyon için şart olan madde? (Su Kalitesi)', 'o': ['Şeker', 'Oksijen (O2)', 'CO2', 'Tuz', 'Demir'], 'c': 1, 'e': 'Yararlı bakteriler aerobik (oksijenli) ortamda çalışır.'}, {'q': 'Kahverengi kan hastalığı sebebi? (Su Kalitesi)', 'o': ['Kalsiyum', 'Nitrat', 'Nitrit (NO2)', 'Amonyak', 'Fosfor'], 'c': 2, 'e': 'Nitrit kan rengini kahverengiye çevirir ve nefes almayı keser.'}, {'q': 'İletkenlik ile doğrudan ilişkili parametre? (Su Kalitesi)', 'o': ['Derinlik', 'Işık', 'Toplam Çözünmüş Katılar (TDS)', 'Hız', 'Ağırlık'], 'c': 2, 'e': 'İyonlar arttıkça iletkenlik artar.'}, {'q': 'Alkalinite düşükse ne olur? (Su Kalitesi)', 'o': ['Soğuma', 'Ani pH dalgalanmaları', 'Tuzlanma', 'Büyüme', 'Akma'], 'c': 1, 'e': 'Tamponlama kapasitesi zayıf demektir.'}, {'q': 'Kanda CO2 birikmesine ne denir? (Su Kalitesi)', 'o': ['Hipoksi', 'Hiperkapni', 'Asfiksi', 'Anoksi', 'Ötrofikasyon'], 'c': 1, 'e': 'Kanda aşırı karbondioksit birikmesi durumudur.'}, {'q': 'RAS sistemlerinde pH yükseltmek için ne eklenir? (Su Kalitesi)', 'o': ['Asit', 'Kireç / Sodyum Bikarbonat', 'Şeker', 'Kum', 'Sirke'], 'c': 1, 'e': 'Asitli suyu dengelemek için bazik maddeler kullanılır.'}, {'q': 'Çürük yumurta kokulu zehirli gaz? (Su Kalitesi)', 'o': ['Şeker', 'Hidrojen Sülfür (H2S)', 'Uykulu', 'Renk', 'Tehlikesiz'], 'c': 1, 'e': 'Anaerobik çürüme sonucu oluşan çok zehirli bir gazdır.'}, {'q': 'Fosfor artışı neyi tetikler? (Su Kalitesi)', 'o': ['Ölüm', 'Alg patlaması', 'Donma', 'Karaya çıkma', 'Beyazlama'], 'c': 1, 'e': 'Fosfor bitkisel üretim için tetikleyicidir.'}, {'q': 'Kuluçka suyunda en kritik özellik? (Su Kalitesi)', 'o': ['Derinlik', 'Işık', 'Sabit sıcaklık ve yüksek oksijen', 'Hız', 'Kum'], 'c': 2, 'e': 'Yumurtalar çok hassas çevre koşulları ister.'}, {'q': 'Askıda katı madde (AKM) zararı? (Su Kalitesi)', 'o': ['Yüzememe', 'Solungaç tıkanması ve doku harabı', 'Görüntü', 'Dökülme', 'Ağırlık'], 'c': 1, 'e': 'Mekanik olarak solungaçları tıkar.'}, {'q': 'Ozonun temel işlevi? (Su Kalitesi)', 'o': ['Vitamin', 'Dezenfeksiyon ve oksidasyon', 'Mavi renk', 'Uyutma', 'Tasarruf'], 'c': 1, 'e': 'Suyu mikroplardan ve kirlilikten temizler.'}, {'q': 'Ca ve Mg eksikliği sonucu? (Su Kalitesi)', 'o': ['Büyüme', 'İskelet bozuklukları', 'Saç dökülme', 'Isınma', 'Yok'], 'c': 1, 'e': 'Kemik gelişimi için bu iyonlar şarttır.'}, {'q': 'Oksijen doygunluğu (Satürasyon) neyi ifade eder? (Su Kalitesi)', 'o': ['Tokluk', 'Gaz taşıma kapasite oranı (%)', 'Kapasite', 'Derinlik', 'Yem'], 'c': 1, 'e': 'Suyun mevcut şartlarda ne kadar oksijen tuttuğunu gösterir.'}, {'q': 'Amonyak atılımını ne zorlaştırır? (Su Kalitesi)', 'o': ['Temizlik', 'Yüksek pH', 'Soğukluk', 'Akıntı', 'Işık'], 'c': 1, 'e': 'Dış ortam bazikse balık amonyağı dışarı atamaz.'}, {'q': 'Termoklin nedir? (Su Kalitesi)', 'o': ['Hız', 'Aniden sıcaklık düşen su katmanı', 'Üst yüzey', 'Dip', 'Yumurta'], 'c': 1, 'e': 'Sıcak ve soğuk suyun ayrıştığı termal tabakadır.'}, {'q': 'Refraktometre neyi ölçer? (Su Kalitesi)', 'o': ['pH', 'Tuzluluk', 'Derinlik', 'Oksijen', 'Boy'], 'c': 1, 'e': 'Işık kırılmasıyla tuz ölçümü yapar.'}, {'q': 'Demir (Fe) kirliliği zararı? (Su Kalitesi)', 'o': ['Güç', 'Solungaçta paslanma (çökelti)', 'Şeker', 'İştah', 'Yok'], 'c': 1, 'e': 'Okside olan demir solungaçları kaplar.'}, {'q': 'Fotosentez ne zaman zirve yapar? (Su Kalitesi)', 'o': ['Gece', 'Sabah', 'Öğle', 'Akşam', 'Sabit'], 'c': 2, 'e': 'Işık en güçlüyken üretim en fazladır.'}, {'q': 'Nitrit zehrini hangi iyon kırar? (Su Kalitesi)', 'o': ['Amonyak', 'Klorür (Tuz)', 'CO2', 'Bakır', 'Çinko'], 'c': 1, 'e': 'Klorür iyonları nitritin kana girmesini engeller.'}, {'q': 'Metan gazı (CH4) nerede oluşur? (Su Kalitesi)', 'o': ['Hızlı su', 'Oksijensiz dip sedimentinde', 'Havalandırmada', 'Hızlı yüzme', 'Güneş'], 'c': 1, 'e': 'Dipte biriken atıkların çürümesiyle oluşur.'}, {'q': 'Doygunluk için hangi ikili bilinmeli? (Su Kalitesi)', 'o': ['Derinlik/Balık', 'Sıcaklık ve Basınç', 'Yem/Işık', 'Hız/Renk', 'Boy/Ağırlık'], 'c': 1, 'e': 'Sıcaklık ve basınç suyun gaz tutma limitini belirler.'}, {'q': 'Nefrokalsinozis sebebi nedir? (Su Kalitesi)', 'o': ['Düşük pH', 'Yüksek CO2 seviyesi', 'Işık', 'Tuzluluk', 'Amonyak'], 'c': 1, 'e': 'Kronik CO2 yüksekliği böbreklerde kireçlenmeye yol açar.'}, {'q': 'İletkenlik birimi nedir? (Su Kalitesi)', 'o': ['mg/L', 'pH', 'µS/cm', '°C', 'g/cm3'], 'c': 2, 'e': 'Mikrosiemens/santimetre birimidir.'}, {'q': 'Su yeşilse ne vardır? (Su Kalitesi)', 'o': ['Bakır', 'Fitoplankton', 'Derinlik', 'Hastalık', 'Donma'], 'c': 1, 'e': 'Yosun/Alg yoğunluğu suyun rengini yeşil yapar.'}, {'q': 'Hipoksi belirtisi? (Su Kalitesi)', 'o': ['Dipte durma', 'Yüzeyde hava yutma (papping)', 'Yem yeme', 'Dönme', 'Dökülme'], 'c': 1, 'e': 'Balık oksijen için su yüzeyine çıkar.'}, {'q': 'Aeratörün (havalandırıcı) görevi? (Su Kalitesi)', 'o': ['Egzersiz', 'Oksijen verme ve gazları (CO2, NH3) uzaklaştırma', 'Tat', 'Kaçma', 'Isıtma'], 'c': 1, 'e': 'Su-hava temasını maksimize eder.'}, {'q': 'Sert su ekipmanda ne yapar? (Su Kalitesi)', 'o': ['Pas', 'Kireçlenme ve tıkanma', 'Erime', 'Yok', 'Parlama'], 'c': 1, 'e': 'Mineraller borularda birikir.'}, {'q': 'İdeal su sıcaklığı tanımı? (Su Kalitesi)', 'o': ['Donma', 'Türün optimum büyüme aralığı', 'İnsan', '20 derece', 'Renk'], 'c': 1, 'e': 'Her türün genetik ideal sıcaklığı farklıdır.'}, {'q': 'Nitrat (NO3) hakkında hangisi doğrudur? (Su Kalitesi)', 'o': ['Çok zehirli', 'Döngünün son ürünü ve en az zehirli olan', 'Zararsız', 'Mavi', 'Sadece deniz'], 'c': 1, 'e': 'Amonyağa göre çok daha tolere edilebilir bir maddedir.'}, {'q': 'Askıda katı madde (AKM) nasıl ölçülür? (Su Kalitesi)', 'o': ['Tartarak', 'Filtreleme ve kurutma tartımı', 'Sayarak', 'Kapatma', 'Tadarak'], 'c': 1, 'e': 'Sudaki fiziksel partikül ağırlığını verir.'}, {'q': 'Sıcaklık şoku ne zaman olur? (Su Kalitesi)', 'o': ['Hızlı yüzme', 'Farklı sıcaklıktaki suya aniden bırakılma', 'Güneş', 'Yemleme', 'Kar'], 'c': 1, 'e': 'Ani ısı değişimi balığı şoka sokar.'}, {'q': 'Bulanıklık birimi? (Su Kalitesi)', 'o': ['mg/L', 'NTU', '°C', 'pH', 'Bar'], 'c': 1, 'e': 'Nephelometric Turbidity Unit birimidir.'}, {'q': 'Mukoza artışı neyin işaretidir? (Su Kalitesi)', 'o': ['Dekor', 'Stres ve kötü su kalitesi', 'Kemik', 'Su içme', 'İlişkisiz'], 'c': 1, 'e': 'Balık korunmak için aşırı sümüksü tabaka salgılar.'}, {'q': 'Akarsuların durgun sulara göre farkı? (Su Kalitesi)', 'o': ['Oksijen az', 'Kendi kendini temizleme kapasitesi yüksektir', 'Sıcak', 'Canlı yok', 'pH sabit'], 'c': 1, 'e': 'Hareket su kalitesini iyileştirir.'}, {'q': 'Serbest klor (şebeke suyu) etkisi? (Su Kalitesi)', 'o': ['Faydalı', 'Solungaç yakan bir zehir', 'Beyaz', 'Tat', 'Parlama'], 'c': 1, 'e': 'Şebeke suyu mutlaka dinlendirilmeli veya havalandırılmalıdır.'}, {'q': 'İşletme kapasitesi neye göre hesaplanır? (Su Kalitesi)', 'o': ['Renk', 'Oksijen ve su debisi', 'Derinlik', 'Cins', 'Tercih'], 'c': 1, 'e': 'Su ne kadar oksijen sağlıyorsa o kadar balık bakılabilir.'}, {'q': 'Özgül ağırlık ne için ölçülür? (Su Kalitesi)', 'o': ['Oksijen', 'Tuzluluk tayini', 'pH', 'Ağırlık', 'Sıcaklık'], 'c': 1, 'e': 'Yoğunluk tuz miktarını dolaylı olarak gösterir.'}, {'q': 'Sürdürülebilir su kalitesi yöntemi? (Su Kalitesi)', 'o': ['İlaç', 'Düzenli su değişimi ve havalandırma', 'Az yem', 'Isıtma', 'Boyama'], 'c': 1, 'e': 'Önleyici yönetim en iyi yöntemdir.'}];
+
+  document.getElementById("mainTitle").textContent = `${BASE_SUBJECT} Deneme Sınavı`;
+  document.getElementById("headerSubject").textContent = BASE_SUBJECT;
+  document.getElementById("sourceTag").textContent = SOURCE_TEXT;
+  document.title = `${BASE_SUBJECT} Deneme Sınavı`;
+
+  if (performance.navigation.type === performance.navigation.TYPE_RELOAD || !sessionStorage.getItem("session_active")) {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith(storagePrefix())) localStorage.removeItem(k);
+    });
+    sessionStorage.setItem("session_active", "true");
+  }
+
+  let currentQuestions = [];
+  let currentIndex = 0;
+  let solvedIndex = -1;
+  let userAnswers = {};
+  let currentSetKey = "";
+  let stats = { correct: 0, wrong: 0 };
+  let wrongQuestionsMode = false;
+
+  function storagePrefix() {
+    return "exam_" + CURRENT_SUBJECT.replace(/\s+/g, "_") + "_";
+  }
+
+  function setStateKey(index) {
+    return storagePrefix() + "state_set_" + index;
+  }
+
+  function wrongQuestionsKey() {
+    return storagePrefix() + "wrong_questions_pool";
+  }
+
+  function getWrongQuestionsPool() {
+    return JSON.parse(localStorage.getItem(wrongQuestionsKey()) || "[]");
+  }
+
+  function saveWrongQuestionsPool(pool) {
+    localStorage.setItem(wrongQuestionsKey(), JSON.stringify(pool));
+  }
+
+  function addWrongQuestionToPool(question) {
+    const pool = getWrongQuestionsPool();
+
+    const exists = pool.some(item =>
+      item.q === question.q &&
+      JSON.stringify(item.o) === JSON.stringify(question.o)
+    );
+
+    if (!exists) {
+      pool.push({
+        q: question.q,
+        o: [...question.o],
+        c: question.c,
+        e: question.e || ""
+      });
+      saveWrongQuestionsPool(pool);
+    }
+  }
+
+  function normalizeQuestion(q, originalIndex) {
+    return {
+      id: q.id || ("q_" + originalIndex + "_" + Math.random().toString(36).slice(2, 8)),
+      originalNo: originalIndex + 1,
+      q: q.q,
+      o: [...q.o],
+      c: q.c,
+      e: q.e || "",
+      isRetry: q.isRetry || false,
+      retryFrom: q.retryFrom || null,
+      retryCount: q.retryCount || 0,
+      answeredCorrectly: q.answeredCorrectly || false
+    };
+  }
+
+  function initMenu() {
+    const menuGrid = document.getElementById("menuGrid");
+    menuGrid.innerHTML = "";
+
+    const totalSets = Math.ceil(questions.length / QUESTIONS_PER_SET);
+
+    let setsPerButton = 1;
+    let buttonCount = totalSets;
+
+    if (buttonCount > 10) {
+      setsPerButton = 2;
+      buttonCount = Math.ceil(totalSets / setsPerButton);
+    }
+
+    buttonCount = Math.min(buttonCount, 10);
+
+    for (let i = 0; i < buttonCount; i++) {
+      const startSetNo = i * setsPerButton + 1;
+      const endSetNo = Math.min(startSetNo + setsPerButton - 1, totalSets);
+
+      const start = (startSetNo - 1) * QUESTIONS_PER_SET;
+      const end = Math.min(endSetNo * QUESTIONS_PER_SET, questions.length);
+
+      if (start >= questions.length) continue;
+
+      const key = setStateKey(i);
+
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      const solved = saved ? Object.keys(saved.userAnswers || {}).length : 0;
+      const correct = saved?.stats?.correct || 0;
+      const wrong = saved?.stats?.wrong || 0;
+
+      const totalCurrent = saved?.currentQuestions?.length || (end - start);
+      const isCompleted = saved ? (solved >= totalCurrent && totalCurrent > 0) : false;
+
+      const label = startSetNo === endSetNo
+        ? `Deneme-${startSetNo}`
+        : `Deneme-${startSetNo}-${endSetNo}`;
+
+      const btn = document.createElement("button");
+      btn.className = `menu-btn ${isCompleted ? "locked" : ""}`;
+      btn.innerHTML = `
+        <strong>${label}</strong><br>
+        <small>${end - start} Soru | Çözülen ${solved} (Doğru ${correct} Yanlış ${wrong})</small>
+      `;
+
+      if (!isCompleted) {
+        btn.onclick = () => startSet(i, key, start, end);
+      }
+
+      menuGrid.appendChild(btn);
+    }
+
+    const wrongPool = getWrongQuestionsPool();
+
+    if (wrongPool.length > 0) {
+      const wrongBtn = document.createElement("button");
+      wrongBtn.className = "wrong-menu-btn";
+      wrongBtn.innerHTML = `
+        <strong>Yanlış Yapılan Sorular</strong><br>
+        <small>${wrongPool.length} Soru | Yeniden çöz</small>
+      `;
+      wrongBtn.onclick = openWrongQuestions;
+      menuGrid.appendChild(wrongBtn);
+    }
+  }
+
+  function openWrongQuestions() {
+    const pool = getWrongQuestionsPool();
+    if (!pool.length) return;
+
+    wrongQuestionsMode = true;
+    currentSetKey = storagePrefix() + "wrong_questions_state";
+
+    const saved = JSON.parse(localStorage.getItem(currentSetKey) || "null");
+
+    if (saved) {
+      currentQuestions = saved.currentQuestions;
+      currentIndex = saved.currentIndex;
+      solvedIndex = saved.solvedIndex;
+      userAnswers = saved.userAnswers || {};
+      stats = saved.stats || { correct: 0, wrong: 0 };
+    } else {
+      currentQuestions = pool.map((q, i) => ({
+        id: "wrong_" + i + "_" + Math.random().toString(36).slice(2, 8),
+        originalNo: i + 1,
+        q: q.q,
+        o: [...q.o],
+        c: q.c,
+        e: q.e || "",
+        isRetry: false,
+        retryFrom: null,
+        retryCount: 0,
+        answeredCorrectly: false
+      }));
+
+      currentIndex = 0;
+      solvedIndex = -1;
+      userAnswers = {};
+      stats = { correct: 0, wrong: 0 };
+      saveState();
+    }
+
+    document.getElementById("menuContainer").style.display = "none";
+    document.getElementById("quizContainer").style.display = "block";
+    document.getElementById("headerSubject").textContent = "Yanlış Yapılan Sorular";
+    loadQuestion();
+    window.scrollTo(0, 0);
+  }
+
+  function startSet(idx, key, start, end) {
+    wrongQuestionsMode = false;
+    currentSetKey = key;
+
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+
+    if (saved) {
+      currentQuestions = saved.currentQuestions;
+      currentIndex = saved.currentIndex;
+      solvedIndex = saved.solvedIndex;
+      userAnswers = saved.userAnswers || {};
+      stats = saved.stats || { correct: 0, wrong: 0 };
+    } else {
+      currentQuestions = questions.slice(start, end).map((q, i) => normalizeQuestion(q, start + i));
+      currentIndex = 0;
+      solvedIndex = -1;
+      userAnswers = {};
+      stats = { correct: 0, wrong: 0 };
+      saveState();
+    }
+
+    document.getElementById("menuContainer").style.display = "none";
+    document.getElementById("quizContainer").style.display = "block";
+    document.getElementById("headerSubject").textContent = BASE_SUBJECT;
+    loadQuestion();
+    window.scrollTo(0, 0);
+  }
+
+  function getQuestionTitle(q) {
+    return `Soru-${q.originalNo}: ${q.q}`;
+  }
+
+  function loadQuestion() {
+    const q = currentQuestions[currentIndex];
+    const progress = ((currentIndex + 1) / currentQuestions.length) * 100;
+
+    document.getElementById("progressBar").style.width = progress + "%";
+    document.getElementById("footerLeft").textContent = `Kalan: ${Math.max(currentQuestions.length - (currentIndex + 1), 0)}`;
+    document.getElementById("footerRight").textContent = `${currentIndex + 1} / ${currentQuestions.length}`;
+    document.getElementById("questionText").textContent = getQuestionTitle(q);
+
+    const retryBadge = document.getElementById("retryBadge");
+    retryBadge.style.display = q.isRetry ? "block" : "none";
+
+    const optArea = document.getElementById("optionsArea");
+    const expArea = document.getElementById("explanationArea");
+    optArea.innerHTML = "";
+    expArea.style.display = "none";
+    expArea.innerHTML = "";
+
+    const letters = ["A", "B", "C", "D", "E"];
+
+    q.o.forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.innerHTML = `<strong>${letters[idx]})</strong> ${opt}`;
+
+      if (currentIndex <= solvedIndex) {
+        btn.disabled = true;
+        const userChoice = userAnswers[currentIndex];
+
+        if (idx === userChoice) {
+          if (userChoice === q.c) {
+            btn.classList.add("correct");
+            btn.innerHTML += ` <span class="tick show">✔</span>`;
+          } else {
+            btn.classList.add("wrong");
+          }
+        }
+
+        if (wrongQuestionsMode) {
+          if (idx === q.c) {
+            btn.classList.add("correct");
+            btn.innerHTML += ` <span class="tick show">✔</span>`;
+          }
+          expArea.innerHTML = `<strong>Açıklama:</strong> ${q.e}`;
+          expArea.style.display = "block";
+        } else {
+          if (userChoice === q.c) {
+            expArea.innerHTML = `<strong>Açıklama:</strong> ${q.e}`;
+            expArea.style.display = "block";
+          } else if (q.isRetry) {
+            if (idx === q.c) {
+              btn.classList.add("correct");
+              btn.innerHTML += ` <span class="tick show">✔</span>`;
+            }
+            expArea.innerHTML = `<strong>Açıklama:</strong> ${q.e}`;
+            expArea.style.display = "block";
+          }
+        }
+      } else {
+        btn.onclick = () => selectOption(idx);
+      }
+
+      optArea.appendChild(btn);
+    });
+
+    document.getElementById("prevBtn").style.visibility = currentIndex > 0 ? "visible" : "hidden";
+    document.getElementById("nextBtn").style.visibility = currentIndex <= solvedIndex ? "visible" : "hidden";
+  }
+
+  function selectOption(idx) {
+    const q = currentQuestions[currentIndex];
+    const isCorrect = idx === q.c;
+
+    userAnswers[currentIndex] = idx;
+    solvedIndex = Math.max(solvedIndex, currentIndex);
+
+    if (isCorrect) {
+      stats.correct++;
+      q.answeredCorrectly = true;
+    } else {
+      stats.wrong++;
+
+      if (wrongQuestionsMode) {
+        // Yanlış Yapılan Sorular modunda soru yeniden eklenmez.
+      } else {
+        addWrongQuestionToPool(q);
+
+        if (!q.isRetry) {
+          const retryQuestion = {
+            ...q,
+            isRetry: true,
+            retryFrom: q.originalNo,
+            retryCount: 1
+          };
+
+          const insertIndex = Math.min(currentIndex + 5, currentQuestions.length);
+          currentQuestions.splice(insertIndex, 0, retryQuestion);
+        }
+      }
+    }
+
+    saveState();
+    loadQuestion();
+  }
+
+  function saveState() {
+    localStorage.setItem(currentSetKey, JSON.stringify({
+      currentQuestions,
+      currentIndex,
+      solvedIndex,
+      userAnswers,
+      stats
+    }));
+  }
+
+  function goForward() {
+    if (currentIndex < solvedIndex) {
+      currentIndex = solvedIndex + 1;
+    } else if (currentIndex < currentQuestions.length - 1) {
+      currentIndex++;
+    } else {
+      return showMenu();
+    }
+
+    saveState();
+    loadQuestion();
+    window.scrollTo(0, 0);
+  }
+
+  function goBack() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      saveState();
+      loadQuestion();
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function showMenu() {
+    wrongQuestionsMode = false;
+    document.getElementById("headerSubject").textContent = BASE_SUBJECT;
+    document.getElementById("quizContainer").style.display = "none";
+    document.getElementById("menuContainer").style.display = "block";
+    initMenu();
+    window.scrollTo(0, 0);
+  }
+
+  function clearAllStatistics() {
+    if (confirm("Tüm veriler sıfırlansın mı?")) {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith(storagePrefix())) localStorage.removeItem(k);
+      });
+      initMenu();
+    }
+  }
+
+  function resetCurrentSet() {
+    if (confirm("Bu deneme sıfırlansın mı?")) {
+      localStorage.removeItem(currentSetKey);
+      showMenu();
+    }
+  }
+
+  initMenu();
+</script>
+
+<script>
+function shuffleAllQuestions() {
+  if (!confirm("Tüm sorular ve şıkları karıştırılsın mı?")) return;
+
+  questions.forEach(q => {
+    const correct = q.o[q.c];
+    for (let i = q.o.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [q.o[i], q.o[j]] = [q.o[j], q.o[i]];
+    }
+    q.c = q.o.findIndex(x => x === correct);
+  });
+
+  for (let i = questions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questions[i], questions[j]] = [questions[j], questions[i]];
+  }
+
+  if (typeof storagePrefix === "function") {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith(storagePrefix())) localStorage.removeItem(k);
+    });
+  }
+
+  alert("Sorular karıştırıldı!");
+  if (typeof initMenu === "function") initMenu();
+}
+</script>
+
+</body>
+</html>
